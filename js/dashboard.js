@@ -150,11 +150,9 @@ async function loadProfileView() {
       .eq('id', currentUser.id)
       .single();
     wrap1.style.display = 'block';
-    document.getElementById('profExtraLabel1').textContent = 'Roll number';
+    document.getElementById('profExtraLabel1').textContent = 'Student ID';
     document.getElementById('profExtra1').value = data?.roll_no || '—';
-    wrap2.style.display = 'block';
-    document.getElementById('profExtraLabel2').textContent = 'Class';
-    document.getElementById('profExtra2').value = data?.class_name || '—';
+    wrap2.style.display = 'none';
   } else if (currentProfile.role === 'teacher') {
     const { data } = await supabaseClient
       .from('teachers')
@@ -189,7 +187,7 @@ async function loadEnterGradesForm() {
   data.forEach(s => {
     const opt = document.createElement('option');
     opt.value = s.id;
-    opt.textContent = `${s.profiles.full_name} (${s.roll_no || 'no roll no'})`;
+    opt.textContent = `${s.profiles.full_name} (${s.roll_no ? 'ID: ' + s.roll_no : 'no ID'})`;
     select.appendChild(opt);
   });
   select.dataset.loaded = '1';
@@ -283,7 +281,7 @@ async function loadManageStudents() {
     tr.innerHTML = `
       <td>${escapeHtml(s.profiles.full_name)}</td>
       <td>${escapeHtml(s.profiles.email)}</td>
-      <td>${escapeHtml(s.roll_no || '—')} / ${escapeHtml(s.class_name || '—')}</td>`;
+      <td>${escapeHtml(s.roll_no || '—')}</td>`;
     body.appendChild(tr);
   });
 }

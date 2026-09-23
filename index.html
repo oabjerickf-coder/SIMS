@@ -1,77 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Student Information Management System — Sign In</title>
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Information Management System — Sign In</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
 
-<div class="login-shell">
-  <div class="login-card glass">
+  <div class="login-shell">
+    <div class="login-card glass">
 
-    <div class="brand">
-      <div class="mark">S</div>
-      <h1>Student Information<br>Management System</h1>
-      <p id="modeSubtitle">Sign in to continue</p>
-    </div>
+      <div class="brand">
+        <div class="mark">S</div>
+        <h1>Student Information<br>Management System</h1>
+        <p id="modeSubtitle">Sign in to continue</p>
+      </div>
 
-    <div class="error-box" id="errorBox"></div>
+      <div class="error-box" id="errorBox"></div>
 
-    <form id="authForm">
+      <form id="authForm">
 
-      <!-- Sign-up only fields -->
-      <div class="role-fields" id="signupFields">
-        <div class="field">
-          <label for="fullName">Full name</label>
-          <input type="text" id="fullName" placeholder="e.g. Maria Santos">
+        <!-- Sign-up only fields -->
+        <div class="role-fields" id="signupFields">
+          <div class="field">
+            <label for="fullName">Full name</label>
+            <input type="text" id="fullName" placeholder="Jerick Oab">
+          </div>
+
+          <div class="field">
+            <label for="role">Select role</label>
+            <select id="role">
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          <div class="field" id="studentOnlyFields">
+            <label for="rollNo">Student ID</label>
+            <input type="text" id="rollNo" placeholder="2401010100">
+          </div>
         </div>
 
         <div class="field">
-          <label for="role">Select role</label>
-          <select id="role">
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="admin">Admin</option>
-          </select>
+          <label for="email">Username (email)</label>
+          <input type="email" id="email" placeholder="you@school.edu" required>
         </div>
 
-        <div class="field" id="studentOnlyFields">
-          <label for="rollNo">Roll number / Class</label>
-          <input type="text" id="rollNo" placeholder="e.g. 10-A / Roll 24">
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="••••••••" required>
         </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">Login</button>
+      </form>
+
+      <div class="switch-mode">
+        <span id="switchText">Don't have an account?</span>
+        <button type="button" id="switchBtn">Create one</button>
       </div>
 
-      <div class="field">
-        <label for="email">Username (email)</label>
-        <input type="email" id="email" placeholder="you@school.edu" required>
+      <div class="hint-box">
+        Login successful → routes you by role (Student / Teacher / Admin).
+        If login fails, you'll be prompted to try again.
       </div>
 
-      <div class="field">
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="••••••••" required>
-      </div>
-
-      <button type="submit" class="btn btn-primary" id="submitBtn">Login</button>
-    </form>
-
-    <div class="switch-mode">
-      <span id="switchText">Don't have an account?</span>
-      <button type="button" id="switchBtn">Create one</button>
     </div>
-
-    <div class="hint-box">
-      Login successful → routes you by role (Student / Teacher / Admin).
-      If login fails, you'll be prompted to try again.
-    </div>
-
   </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/supabase-client.js"></script>
-<script src="js/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
 </body>
+
 </html>
