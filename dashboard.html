@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Student Information Management System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="loader" class="center-loader">Loading your dashboard…</div>
+
+<div class="app-shell" id="appShell" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar glass">
+    <div class="brand">
+      <div class="mark">S</div>
+      <h1>Student Info<br>Management System</h1>
+    </div>
+
+    <div class="who">
+      <div class="name" id="whoName">—</div>
+      <span class="role" id="whoRole">—</span>
+    </div>
+
+    <nav class="nav" id="navList"><!-- injected by role --></nav>
+
+    <button class="btn btn-danger" id="logoutBtn">Logout</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar glass">
+      <div>
+        <h2 id="pageTitle">Overview</h2>
+        <p id="pageSub">Here's what's happening today.</p>
+      </div>
+    </div>
+
+    <!-- ================= STUDENT: View Grade ================= -->
+    <section class="view" id="view-view_grade">
+      <div class="panel glass">
+        <h3>My grades</h3>
+        <p class="sub">Grades entered by your teachers, by subject and term.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Subject</th><th>Term</th><th>Grade</th><th>Last updated</th></tr></thead>
+            <tbody id="studentGradesBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="studentGradesEmpty" style="display:none;">No grades recorded yet.</div>
+      </div>
+    </section>
+
+    <!-- ================= View Profile (Student + Teacher) ================= -->
+    <section class="view" id="view-view_profile">
+      <div class="panel glass">
+        <h3>My profile</h3>
+        <p class="sub">Your account details on record.</p>
+        <div class="form-row">
+          <div class="field"><label>Full name</label><input id="profFullName" disabled></div>
+          <div class="field"><label>Email</label><input id="profEmail" disabled></div>
+          <div class="field" id="profExtraWrap1" style="display:none;"><label id="profExtraLabel1"></label><input id="profExtra1" disabled></div>
+          <div class="field" id="profExtraWrap2" style="display:none;"><label id="profExtraLabel2"></label><input id="profExtra2" disabled></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TEACHER: Enter Grades ================= -->
+    <section class="view" id="view-enter_grades">
+      <div class="panel glass">
+        <h3>Enter grades</h3>
+        <p class="sub">Add a grade for a student.</p>
+        <form id="enterGradeForm">
+          <div class="form-row">
+            <div class="field">
+              <label>Student</label>
+              <select id="egStudent" required></select>
+            </div>
+            <div class="field">
+              <label>Subject</label>
+              <input id="egSubject" placeholder="e.g. Mathematics" required>
+            </div>
+            <div class="field">
+              <label>Term</label>
+              <input id="egTerm" placeholder="e.g. Term 1" required>
+            </div>
+            <div class="field">
+              <label>Grade</label>
+              <input id="egGrade" placeholder="e.g. A / 92" required>
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit" style="width:auto; padding:11px 22px;">Save grade</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= TEACHER: Update Grade ================= -->
+    <section class="view" id="view-update_grade">
+      <div class="panel glass">
+        <h3>Update grade</h3>
+        <p class="sub">Edit a grade you or another teacher already entered.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Subject</th><th>Term</th><th>Grade</th><th></th></tr></thead>
+            <tbody id="updateGradesBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="updateGradesEmpty" style="display:none;">No grades to update yet.</div>
+      </div>
+    </section>
+
+    <!-- ================= ADMIN: Manage Student ================= -->
+    <section class="view" id="view-manage_student">
+      <div class="panel glass">
+        <div class="stat-row">
+          <div class="stat glass"><div class="num" id="statStudents">0</div><div class="label">Students</div></div>
+          <div class="stat glass"><div class="num" id="statTeachers">0</div><div class="label">Teachers</div></div>
+          <div class="stat glass"><div class="num" id="statGrades">0</div><div class="label">Grades recorded</div></div>
+        </div>
+        <h3>Manage students</h3>
+        <p class="sub">All students registered in the system.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Roll no / Class</th></tr></thead>
+            <tbody id="manageStudentsBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="manageStudentsEmpty" style="display:none;">No students registered yet.</div>
+      </div>
+    </section>
+
+    <!-- ================= ADMIN: Generate Report ================= -->
+    <section class="view" id="view-generate_report">
+      <div class="panel glass">
+        <h3>Generate report</h3>
+        <p class="sub">A summary of all grades across the system. Export as CSV for records.</p>
+        <button class="btn btn-ghost" id="exportCsvBtn" style="width:auto; padding:10px 18px; margin-bottom:18px;">Export CSV</button>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Subject</th><th>Term</th><th>Grade</th><th>Entered by</th></tr></thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="reportEmpty" style="display:none;">No data to report yet.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
