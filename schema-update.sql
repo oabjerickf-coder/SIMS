@@ -19,30 +19,33 @@ create table if not exists public.announcements (
 -- 3. Enable RLS on announcements
 alter table public.announcements enable row level security;
 
--- 4. Announcements policies
--- All authenticated users can read announcements
+-- 4. Announcements policies (drop first to prevent duplicate policy errors)
+drop policy if exists "anyone can read announcements" on public.announcements;
 create policy "anyone can read announcements" on public.announcements
   for select using (auth.uid() is not null);
 
--- Only admins can insert announcements
+drop policy if exists "admin inserts announcements" on public.announcements;
 create policy "admin inserts announcements" on public.announcements
   for insert with check (public.is_admin());
 
--- Only admins can update announcements
+drop policy if exists "admin updates announcements" on public.announcements;
 create policy "admin updates announcements" on public.announcements
   for update using (public.is_admin());
 
--- Only admins can delete announcements
+drop policy if exists "admin deletes announcements" on public.announcements;
 create policy "admin deletes announcements" on public.announcements
   for delete using (public.is_admin());
 
--- 5. Allow teachers to read their own approved status
--- (already covered by existing "view own teacher row" policy)
-
--- 6. Allow admins to update teachers (for approving)
+-- 5. Allow admins to update teachers (for approving)
+drop policy if exists "admin updates teachers" on public.teachers;
 create policy "admin updates teachers" on public.teachers
   for update using (public.is_admin());
 
+-- 6. Also allow admins to view all teachers so admin can see who to approve
+drop policy if exists "admin views all teachers" on public.teachers;
+create policy "admin views all teachers" on public.teachers
+  for select using (public.is_admin());
+
 -- ============================================================
--- Done. Refresh your Supabase dashboard to see changes.
+-- Done! Run this in Supabase SQL Editor.
 -- ============================================================
