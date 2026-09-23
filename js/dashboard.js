@@ -13,7 +13,9 @@ const NAV_BY_ROLE = {
   ],
   admin: [
     { id: 'manage_student', label: 'Manage student' },
-    { id: 'generate_report', label: 'Generate report' }
+    { id: 'approve_teachers', label: 'Approve teachers' },
+    { id: 'generate_report', label: 'Generate report' },
+    { id: 'post_announcement', label: 'Post announcement' }
   ]
 };
 
@@ -23,7 +25,9 @@ const PAGE_META = {
   enter_grades: ['Enter grades', 'Add a grade for one of your students.'],
   update_grade: ['Update grade', 'Edit grades already on file.'],
   manage_student: ['Manage students', 'Everyone currently enrolled.'],
-  generate_report: ['Generate report', 'A full export of grades across the system.']
+  approve_teachers: ['Approve teachers', 'Review and approve new teacher registrations.'],
+  generate_report: ['Generate report', 'A full export of grades across the system.'],
+  post_announcement: ['Post announcement', 'Send announcements to teachers and students.']
 };
 
 init();
@@ -54,17 +58,40 @@ async function init() {
   }
   currentProfile = profile;
 
+  // Block unapproved teachers from dashboard
+  if (profile.role === 'teacher') {
+    const { data: teacher } = await supabaseClient
+      .from('teachers')
+      .select('approved')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (!teacher || teacher.approved !== true) {
+      const loader = document.getElementById('loader');
+      if (loader) {
+        loader.innerHTML = '<div style="text-align:center;max-width:400px;"><h2 style="font-family:var(--serif);margin-bottom:12px;">Pending Approval</h2><p style="color:var(--text-muted);margin-bottom:20px;">Your teacher account is waiting for admin approval. Please check back later.</p><button class="btn btn-ghost" onclick="supabaseClient.auth.signOut().then(()=>window.location.href=\'index.html\')" style="width:auto;padding:10px 20px;">Back to Login</button></div>';
+      }
+      return;
+    }
+  }
+
   document.getElementById('whoName').textContent = profile.full_name;
   document.getElementById('whoRole').textContent = profile.role;
 
   buildNav(profile.role);
 
+  // Show notification bell for students and teachers
+  if (profile.role === 'student' || profile.role === 'teacher') {
+    setupNotificationBell();
+  }
+
   document.getElementById('loader').style.display = 'none';
   document.getElementById('appShell').style.display = 'flex';
 
   document.getElementById('logoutBtn').addEventListener('click', logout);
-  document.getElementById('enterGradeForm').addEventListener('submit', handleEnterGrade);
-  document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+  document.getElementById('enterGradeForm')?.addEventListener('submit', handleEnterGrade);
+  document.getElementById('exportCsvBtn')?.addEventListener('click', exportCsv);
+  document.getElementById('announcementForm')?.addEventListener('submit', handlePostAnnouncement);
 }
 
 function buildNav(role) {
@@ -103,7 +130,9 @@ function showView(viewId) {
     enter_grades: loadEnterGradesForm,
     update_grade: loadUpdateGrades,
     manage_student: loadManageStudents,
-    generate_report: loadReport
+    approve_teachers: loadApproveTeachers,
+    generate_report: loadReport,
+    post_announcement: loadPostedAnnouncements
   };
   if (loaders[viewId]) loaders[viewId]();
 }
@@ -111,6 +140,85 @@ function showView(viewId) {
 async function logout() {
   await supabaseClient.auth.signOut();
   window.location.href = 'index.html';
+}
+
+/* ============== NOTIFICATION BELL (student + teacher) ============== */
+function setupNotificationBell() {
+  const bell = document.getElementById('notifBell');
+  bell.style.display = 'flex';
+
+  bell.addEventListener('click', openAnnouncementsModal);
+
+  // Check for new announcements
+  updateNotifBadge();
+}
+
+async function updateNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  const lastSeen = localStorage.getItem('sims_last_seen_announcement') || '1970-01-01';
+
+  const { count, error } = await supabaseClient
+    .from('announcements')
+    .select('id', { count: 'exact', head: true })
+    .gt('created_at', lastSeen);
+
+  if (!error && count > 0) {
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function openAnnouncementsModal() {
+  const modal = document.getElementById('announcementsModal');
+  const body = document.getElementById('announcementsModalBody');
+  const empty = document.getElementById('announcementsModalEmpty');
+  modal.style.display = 'flex';
+
+  body.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Loading…</p>';
+  empty.style.display = 'none';
+
+  const { data, error } = await supabaseClient
+    .from('announcements')
+    .select('id, title, body, created_at, profiles!announcements_posted_by_fkey(full_name)')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  body.innerHTML = '';
+
+  if (error) {
+    body.innerHTML = '<p style="color:var(--error);text-align:center;padding:20px;">Could not load announcements.</p>';
+    return;
+  }
+
+  if (!data || !data.length) {
+    empty.style.display = 'block';
+    return;
+  }
+
+  // Mark as seen
+  localStorage.setItem('sims_last_seen_announcement', new Date().toISOString());
+  document.getElementById('notifBadge').style.display = 'none';
+
+  data.forEach(ann => {
+    const card = document.createElement('div');
+    card.className = 'announcement-card';
+    card.innerHTML = `
+      <div class="announcement-header">
+        <h4>${escapeHtml(ann.title)}</h4>
+        <span class="announcement-date">${formatDate(ann.created_at)}</span>
+      </div>
+      <p class="announcement-body">${escapeHtml(ann.body)}</p>
+      <p class="announcement-author">— ${escapeHtml(ann.profiles?.full_name || 'Admin')}</p>`;
+    body.appendChild(card);
+  });
+
+  // Close modal listeners
+  document.getElementById('closeAnnouncementsModal').onclick = () => modal.style.display = 'none';
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  });
 }
 
 /* ============== STUDENT: View grade ============== */
@@ -217,7 +325,7 @@ async function handleEnterGrade(e) {
 
   toast('Grade saved.', 'ok');
   document.getElementById('enterGradeForm').reset();
-  document.getElementById('egStudent').dataset.loaded = '1'; // keep list, just reset visible value
+  document.getElementById('egStudent').dataset.loaded = '1';
 }
 
 /* ============== TEACHER: Update grade ============== */
@@ -242,7 +350,7 @@ async function loadUpdateGrades() {
       <td>${escapeHtml(studentName)}</td>
       <td>${escapeHtml(row.subject)}</td>
       <td>${escapeHtml(row.term)}</td>
-      <td><input value="${escapeHtml(row.grade)}" data-grade-id="${row.id}" style="width:70px; padding:6px 8px; border-radius:8px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.04); color:var(--text);"></td>
+      <td><input value="${escapeHtml(row.grade)}" data-grade-id="${row.id}" style="width:70px; padding:6px 8px; border-radius:8px; border:1px solid var(--glass-specular-edge); background:rgba(18,22,34,0.75); color:var(--on-surface);"></td>
       <td><button class="btn btn-ghost" style="width:auto; padding:7px 14px;" data-save-id="${row.id}">Save</button></td>`;
     body.appendChild(tr);
   });
@@ -288,6 +396,123 @@ async function loadManageStudents() {
       <td>${escapeHtml(s.profiles.email)}</td>
       <td>${escapeHtml(s.roll_no || '—')}</td>`;
     body.appendChild(tr);
+  });
+}
+
+/* ============== ADMIN: Approve teachers ============== */
+async function loadApproveTeachers() {
+  const { data, error } = await supabaseClient
+    .from('teachers')
+    .select('id, approved, profiles!inner(full_name, email, created_at)')
+    .order('profiles(created_at)', { ascending: false });
+
+  const body = document.getElementById('approveTeachersBody');
+  const empty = document.getElementById('approveTeachersEmpty');
+  body.innerHTML = '';
+
+  if (error) { toast('Could not load teachers: ' + error.message, 'err'); return; }
+  if (!data || !data.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  data.forEach(t => {
+    const tr = document.createElement('tr');
+    const isApproved = t.approved === true;
+    tr.innerHTML = `
+      <td>${escapeHtml(t.profiles.full_name)}</td>
+      <td>${escapeHtml(t.profiles.email)}</td>
+      <td>${formatDate(t.profiles.created_at)}</td>
+      <td><span class="status-tag ${isApproved ? 'status-approved' : 'status-pending'}">${isApproved ? 'Approved' : 'Pending'}</span></td>
+      <td>${isApproved
+        ? ''
+        : `<button class="btn btn-primary" style="width:auto; padding:7px 16px; height:auto; font-size:13px;" data-approve-id="${t.id}">Approve</button>`
+      }</td>`;
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('[data-approve-id]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Approving…';
+      const { error } = await supabaseClient
+        .from('teachers')
+        .update({ approved: true })
+        .eq('id', btn.dataset.approveId);
+
+      if (error) {
+        toast('Failed to approve: ' + error.message, 'err');
+        btn.disabled = false;
+        btn.textContent = 'Approve';
+      } else {
+        toast('Teacher approved successfully!', 'ok');
+        loadApproveTeachers(); // Refresh the list
+      }
+    });
+  });
+}
+
+/* ============== ADMIN: Post announcement ============== */
+async function handlePostAnnouncement(e) {
+  e.preventDefault();
+  const title = document.getElementById('annTitle').value.trim();
+  const body = document.getElementById('annBody').value.trim();
+
+  if (!title || !body) { toast('Please fill in both title and message.', 'err'); return; }
+
+  const { error } = await supabaseClient.from('announcements').insert({
+    title,
+    body,
+    posted_by: currentUser.id
+  });
+
+  if (error) { toast('Could not post announcement: ' + error.message, 'err'); return; }
+
+  toast('Announcement posted!', 'ok');
+  document.getElementById('announcementForm').reset();
+  loadPostedAnnouncements();
+}
+
+async function loadPostedAnnouncements() {
+  const { data, error } = await supabaseClient
+    .from('announcements')
+    .select('id, title, body, created_at')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const list = document.getElementById('announcementsList');
+  const empty = document.getElementById('announcementsEmpty');
+  list.innerHTML = '';
+
+  if (error) { toast('Could not load announcements.', 'err'); return; }
+  if (!data || !data.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  data.forEach(ann => {
+    const card = document.createElement('div');
+    card.className = 'announcement-card';
+    card.innerHTML = `
+      <div class="announcement-header">
+        <h4>${escapeHtml(ann.title)}</h4>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="announcement-date">${formatDate(ann.created_at)}</span>
+          <button class="btn-icon-delete" data-delete-ann="${ann.id}" title="Delete">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <p class="announcement-body">${escapeHtml(ann.body)}</p>`;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('[data-delete-ann]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this announcement?')) return;
+      const { error } = await supabaseClient
+        .from('announcements')
+        .delete()
+        .eq('id', btn.dataset.deleteAnn);
+      if (error) toast('Delete failed: ' + error.message, 'err');
+      else { toast('Announcement deleted.', 'ok'); loadPostedAnnouncements(); }
+    });
   });
 }
 

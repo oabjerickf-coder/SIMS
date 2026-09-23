@@ -15,7 +15,15 @@ let mode = 'login'; // or 'signup'
   if (!supabaseClient) return;
   try {
     const { data } = await supabaseClient.auth.getSession();
-    if (data?.session) window.location.href = 'dashboard.html';
+    if (data?.session) {
+      // Check if teacher is approved before redirecting
+      const approved = await isTeacherApproved(data.session.user.id);
+      if (approved === false) {
+        await supabaseClient.auth.signOut();
+        return;
+      }
+      window.location.href = 'dashboard.html';
+    }
   } catch (err) {
     console.error('Session check failed:', err);
   }
@@ -40,9 +48,33 @@ roleSelect.addEventListener('change', () => {
 function showError(message) {
   errorBox.textContent = message;
   errorBox.classList.add('show');
+  errorBox.style.color = '';
 }
 function hideError() {
   errorBox.classList.remove('show');
+  errorBox.style.color = '';
+}
+
+/**
+ * Returns true if user is not a teacher or is an approved teacher.
+ * Returns false only if user is a teacher and NOT approved.
+ */
+async function isTeacherApproved(userId) {
+  const { data: profile } = await supabaseClient
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (!profile || profile.role !== 'teacher') return true; // not a teacher, allow
+
+  const { data: teacher } = await supabaseClient
+    .from('teachers')
+    .select('approved')
+    .eq('id', userId)
+    .single();
+
+  return teacher?.approved === true;
 }
 
 form.addEventListener('submit', async (e) => {
@@ -82,19 +114,27 @@ form.addEventListener('submit', async (e) => {
       });
       if (error) throw error;
 
-      showError('Account created. Check your email to confirm, then sign in.');
+      if (role === 'teacher') {
+        showError('Account created! Your teacher account is pending admin approval. You will be able to log in once approved.');
+      } else {
+        showError('Account created! You can now sign in.');
+      }
       errorBox.style.color = '#bfe8c8';
 
     } else {
-      // ----- "Login successful?" decision from the flowchart -----
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { data: signInData, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
       if (error) {
-        // NO branch → "try again"
         throw new Error('Login failed: ' + error.message + '. Please try again.');
       }
-      // YES branch → select role happens automatically on the dashboard,
-      // based on the role stored in the profile.
+
+      // Check if teacher is approved
+      const approved = await isTeacherApproved(signInData.user.id);
+      if (approved === false) {
+        await supabaseClient.auth.signOut();
+        throw new Error('Your teacher account is pending admin approval. Please wait for the admin to approve your registration.');
+      }
+
       window.location.href = 'dashboard.html';
       return;
     }

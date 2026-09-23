@@ -36,6 +36,14 @@
         <h2 id="pageTitle">Overview</h2>
         <p id="pageSub">Here's what's happening today.</p>
       </div>
+      <!-- Notification Bell (student + teacher) -->
+      <button class="notif-bell" id="notifBell" style="display:none;" title="Announcements">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+      </button>
     </div>
 
     <!-- ================= STUDENT: View Grade ================= -->
@@ -131,6 +139,21 @@
       </div>
     </section>
 
+    <!-- ================= ADMIN: Approve Teachers ================= -->
+    <section class="view" id="view-approve_teachers">
+      <div class="panel glass">
+        <h3>Approve teachers</h3>
+        <p class="sub">Review and approve newly registered teacher accounts.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Registered</th><th>Status</th><th></th></tr></thead>
+            <tbody id="approveTeachersBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="approveTeachersEmpty" style="display:none;">No pending teacher registrations.</div>
+      </div>
+    </section>
+
     <!-- ================= ADMIN: Generate Report ================= -->
     <section class="view" id="view-generate_report">
       <div class="panel glass">
@@ -147,7 +170,46 @@
       </div>
     </section>
 
+    <!-- ================= ADMIN: Post Announcement ================= -->
+    <section class="view" id="view-post_announcement">
+      <div class="panel glass">
+        <h3>Post announcement</h3>
+        <p class="sub">Send announcements to all teachers and students.</p>
+        <form id="announcementForm">
+          <div class="field">
+            <label>Title</label>
+            <input id="annTitle" placeholder="Announcement title" required>
+          </div>
+          <div class="field">
+            <label>Message</label>
+            <textarea id="annBody" placeholder="Write your announcement here…" rows="4" required></textarea>
+          </div>
+          <button class="btn btn-primary" type="submit" style="width:auto; padding:11px 22px;">Post announcement</button>
+        </form>
+        <div style="margin-top:28px;">
+          <h3>Previous announcements</h3>
+          <p class="sub">All announcements you've posted.</p>
+          <div id="announcementsList"></div>
+          <div class="empty" id="announcementsEmpty" style="display:none;">No announcements posted yet.</div>
+        </div>
+      </div>
+    </section>
+
   </main>
+</div>
+
+<!-- Announcements Modal (Teacher + Student) -->
+<div class="modal-overlay" id="announcementsModal" style="display:none;">
+  <div class="modal-card glass">
+    <div class="modal-header">
+      <h3>Announcements</h3>
+      <button class="modal-close" id="closeAnnouncementsModal">&times;</button>
+    </div>
+    <div class="modal-body" id="announcementsModalBody">
+      <!-- filled dynamically -->
+    </div>
+    <div class="empty" id="announcementsModalEmpty" style="display:none;">No announcements yet.</div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
