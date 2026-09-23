@@ -7,6 +7,8 @@ const modeSubtitle = document.getElementById('modeSubtitle');
 const signupFields = document.getElementById('signupFields');
 const roleSelect = document.getElementById('role');
 const studentOnlyFields = document.getElementById('studentOnlyFields');
+const forgotWrap = document.getElementById('forgotWrap');
+const forgotPassBtn = document.getElementById('forgotPassBtn');
 
 let mode = 'login'; // or 'signup'
 
@@ -34,6 +36,7 @@ switchBtn.addEventListener('click', () => {
   const isSignup = mode === 'signup';
 
   signupFields.classList.toggle('show', isSignup);
+  if (forgotWrap) forgotWrap.style.display = isSignup ? 'none' : 'flex';
   submitBtn.textContent = isSignup ? 'Create account' : 'Login';
   modeSubtitle.textContent = isSignup ? 'Create your account' : 'Sign in to continue';
   switchText.textContent = isSignup ? 'Already have an account?' : "Don't have an account?";
@@ -143,5 +146,212 @@ form.addEventListener('submit', async (e) => {
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = mode === 'signup' ? 'Create account' : 'Login';
+  }
+});
+
+/* ============================================================
+   FORGOT PASSWORD & 6-DIGIT OTP VERIFICATION
+   ============================================================ */
+const forgotModal = document.getElementById('forgotModal');
+const forgotEmail = document.getElementById('forgotEmail');
+const forgotErrorBox = document.getElementById('forgotErrorBox');
+const forgotStep1 = document.getElementById('forgotStep1');
+const forgotStep2 = document.getElementById('forgotStep2');
+const sendOtpBtn = document.getElementById('sendOtpBtn');
+const resetPassBtn = document.getElementById('resetPassBtn');
+const resendOtpBtn = document.getElementById('resendOtpBtn');
+const changeEmailStepBtn = document.getElementById('changeEmailStepBtn');
+const sentEmailDisplay = document.getElementById('sentEmailDisplay');
+const otpCodeInput = document.getElementById('otpCodeInput');
+const forgotNewPass = document.getElementById('forgotNewPass');
+const forgotConfirmPass = document.getElementById('forgotConfirmPass');
+
+let resendTimer = null;
+let resendSeconds = 60;
+let targetEmail = '';
+
+function showForgotError(msg) {
+  if (forgotErrorBox) {
+    forgotErrorBox.textContent = msg;
+    forgotErrorBox.classList.add('show');
+  }
+}
+
+function hideForgotError() {
+  if (forgotErrorBox) {
+    forgotErrorBox.classList.remove('show');
+  }
+}
+
+function openForgotModal() {
+  hideForgotError();
+  const currentEmail = document.getElementById('email').value.trim();
+  if (currentEmail) forgotEmail.value = currentEmail;
+
+  forgotStep1.style.display = 'block';
+  forgotStep2.style.display = 'none';
+  if (forgotModal) forgotModal.style.display = 'flex';
+  setTimeout(() => forgotEmail?.focus(), 100);
+}
+
+function closeForgotModal() {
+  if (forgotModal) forgotModal.style.display = 'none';
+  clearInterval(resendTimer);
+  hideForgotError();
+}
+window.closeForgotModal = closeForgotModal;
+
+forgotPassBtn?.addEventListener('click', openForgotModal);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeForgotModal();
+});
+
+// Step 1: Send 6-digit OTP code to email
+sendOtpBtn?.addEventListener('click', async () => {
+  const email = forgotEmail.value.trim();
+  if (!email) {
+    showForgotError('Please enter your verified email address.');
+    return;
+  }
+
+  hideForgotError();
+  sendOtpBtn.disabled = true;
+  sendOtpBtn.textContent = 'Sending 6-digit code…';
+
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+
+    targetEmail = email;
+    if (sentEmailDisplay) sentEmailDisplay.textContent = email;
+    forgotStep1.style.display = 'none';
+    forgotStep2.style.display = 'block';
+    otpCodeInput.value = '';
+    forgotNewPass.value = '';
+    forgotConfirmPass.value = '';
+    setTimeout(() => otpCodeInput?.focus(), 100);
+
+    startResendCountdown();
+  } catch (err) {
+    console.error('Send OTP error:', err);
+    showForgotError(err.message || 'Failed to send OTP code. Please check the email and try again.');
+  } finally {
+    sendOtpBtn.disabled = false;
+    sendOtpBtn.textContent = 'Send 6-digit code';
+  }
+});
+
+function startResendCountdown() {
+  resendSeconds = 60;
+  resendOtpBtn.disabled = true;
+  resendOtpBtn.style.opacity = '0.5';
+  clearInterval(resendTimer);
+  resendOtpBtn.textContent = `Resend code (${resendSeconds}s)`;
+
+  resendTimer = setInterval(() => {
+    resendSeconds--;
+    if (resendSeconds <= 0) {
+      clearInterval(resendTimer);
+      resendOtpBtn.disabled = false;
+      resendOtpBtn.style.opacity = '1';
+      resendOtpBtn.textContent = 'Resend code';
+    } else {
+      resendOtpBtn.textContent = `Resend code (${resendSeconds}s)`;
+    }
+  }, 1000);
+}
+
+resendOtpBtn?.addEventListener('click', async () => {
+  if (resendSeconds > 0) return;
+  hideForgotError();
+  resendOtpBtn.disabled = true;
+  resendOtpBtn.textContent = 'Resending…';
+
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(targetEmail);
+    if (error) throw error;
+    startResendCountdown();
+  } catch (err) {
+    showForgotError(err.message || 'Failed to resend code.');
+    resendOtpBtn.disabled = false;
+    resendOtpBtn.textContent = 'Resend code';
+  }
+});
+
+changeEmailStepBtn?.addEventListener('click', () => {
+  clearInterval(resendTimer);
+  hideForgotError();
+  forgotStep2.style.display = 'none';
+  forgotStep1.style.display = 'block';
+  forgotEmail.focus();
+});
+
+// Step 2: Verify 6-digit OTP code & Reset Password
+resetPassBtn?.addEventListener('click', async () => {
+  const code = otpCodeInput.value.trim();
+  const newPass = forgotNewPass.value;
+  const confirmPass = forgotConfirmPass.value;
+
+  if (!code || code.length < 6) {
+    showForgotError('Please enter the 6-digit OTP verification code.');
+    return;
+  }
+  if (newPass.length < 6) {
+    showForgotError('New password must be at least 6 characters long.');
+    return;
+  }
+  if (newPass !== confirmPass) {
+    showForgotError('Passwords do not match. Please re-enter.');
+    return;
+  }
+
+  hideForgotError();
+  resetPassBtn.disabled = true;
+  resetPassBtn.textContent = 'Verifying & resetting…';
+
+  try {
+    // 1. Verify 6-digit OTP code (recovery or email type)
+    let verifyRes = await supabaseClient.auth.verifyOtp({
+      email: targetEmail,
+      token: code,
+      type: 'recovery'
+    });
+
+    if (verifyRes.error) {
+      verifyRes = await supabaseClient.auth.verifyOtp({
+        email: targetEmail,
+        token: code,
+        type: 'email'
+      });
+    }
+
+    if (verifyRes.error) {
+      throw new Error('Invalid or expired 6-digit OTP code. Please check your Gmail or request a new code.');
+    }
+
+    // 2. User session is now authenticated, update password
+    const { error: updateErr } = await supabaseClient.auth.updateUser({
+      password: newPass
+    });
+    if (updateErr) throw updateErr;
+
+    // 3. Clean sign out so user logs in with new credentials
+    await supabaseClient.auth.signOut();
+
+    closeForgotModal();
+
+    // Fill login form and display success message
+    document.getElementById('email').value = targetEmail;
+    document.getElementById('password').value = '';
+    showError('Password reset successfully! You can now log in with your new password.');
+    errorBox.style.color = '#bfe8c8';
+
+  } catch (err) {
+    console.error('Password reset failed:', err);
+    showForgotError(err.message || 'Password reset failed. Please check the code and try again.');
+  } finally {
+    resetPassBtn.disabled = false;
+    resetPassBtn.textContent = 'Reset Password';
   }
 });
