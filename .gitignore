@@ -1,9 +1,6 @@
-# Configuration & Secrets
-js/config.js
-config.js
+# Environment variables
 .env
 .env.local
-.env.*.local
 *.env
 
 # Operating System files
@@ -14,5 +11,3 @@ desktop.ini
 # IDE & Editor files
 .vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace

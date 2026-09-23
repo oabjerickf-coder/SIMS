@@ -31,7 +31,7 @@ init();
 async function init() {
   if (!supabaseClient) {
     const loader = document.getElementById('loader');
-    if (loader) loader.textContent = 'Hindi makakonekta sa Supabase. Pakisuri ang js/config.js.';
+    if (loader) loader.textContent = 'Hindi makakonekta sa Supabase. Pakisuri ang iyong koneksyon sa internet.';
     return;
   }
   const { data } = await supabaseClient.auth.getSession();

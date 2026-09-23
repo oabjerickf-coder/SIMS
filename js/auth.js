@@ -50,7 +50,7 @@ form.addEventListener('submit', async (e) => {
   hideError();
 
   if (!supabaseClient) {
-    showError('Hindi makakonekta sa database. Pakisuri kung maayos ang js/config.js at may internet connection.');
+    showError('Hindi makakonekta sa database. Pakisuri ang iyong koneksyon sa internet.');
     return;
   }
 
