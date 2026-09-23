@@ -15,7 +15,8 @@ const NAV_BY_ROLE = {
     { id: 'manage_student', label: 'Manage student' },
     { id: 'approve_teachers', label: 'Approve teachers' },
     { id: 'generate_report', label: 'Generate report' },
-    { id: 'post_announcement', label: 'Post announcement' }
+    { id: 'post_announcement', label: 'Post announcement' },
+    { id: 'view_profile', label: 'My profile' }
   ]
 };
 
@@ -92,6 +93,8 @@ async function init() {
   document.getElementById('enterGradeForm')?.addEventListener('submit', handleEnterGrade);
   document.getElementById('exportCsvBtn')?.addEventListener('click', exportCsv);
   document.getElementById('announcementForm')?.addEventListener('submit', handlePostAnnouncement);
+  document.getElementById('profileForm')?.addEventListener('submit', handleSaveProfile);
+  document.getElementById('passwordForm')?.addEventListener('submit', handleChangePassword);
 }
 
 function buildNav(role) {
@@ -305,37 +308,172 @@ async function loadStudentGrades() {
   });
 }
 
-/* ============== View profile (student + teacher) ============== */
+/* ============== View profile (student + teacher + admin) ============== */
 async function loadProfileView() {
-  document.getElementById('profFullName').value = currentProfile.full_name;
-  document.getElementById('profEmail').value = currentProfile.email;
+  document.getElementById('profFullName').value = currentProfile.full_name || '';
+  document.getElementById('profEmail').value = currentProfile.email || '';
+  document.getElementById('profRole').value = currentProfile.role || '';
 
   const wrap1 = document.getElementById('profExtraWrap1');
   const wrap2 = document.getElementById('profExtraWrap2');
+  const wrap3 = document.getElementById('profExtraWrap3');
 
   if (currentProfile.role === 'student') {
     const { data } = await supabaseClient
       .from('students')
-      .select('roll_no, class_name')
+      .select('roll_no, class_name, guardian_contact')
       .eq('id', currentUser.id)
       .single();
+
     wrap1.style.display = 'block';
     document.getElementById('profExtraLabel1').textContent = 'Student ID';
-    document.getElementById('profExtra1').value = data?.roll_no || '—';
-    wrap2.style.display = 'none';
+    document.getElementById('profExtra1').value = data?.roll_no || '';
+    document.getElementById('profExtra1').placeholder = 'e.g. 2401010100';
+
+    wrap2.style.display = 'block';
+    document.getElementById('profExtraLabel2').textContent = 'Class / Section';
+    document.getElementById('profExtra2').value = data?.class_name || '';
+    document.getElementById('profExtra2').placeholder = 'e.g. 10-A';
+
+    wrap3.style.display = 'block';
+    document.getElementById('profExtraLabel3').textContent = 'Guardian contact';
+    document.getElementById('profExtra3').value = data?.guardian_contact || '';
+    document.getElementById('profExtra3').placeholder = 'e.g. 09123456789';
+
   } else if (currentProfile.role === 'teacher') {
     const { data } = await supabaseClient
       .from('teachers')
       .select('subject_specialty')
       .eq('id', currentUser.id)
       .single();
+
     wrap1.style.display = 'block';
     document.getElementById('profExtraLabel1').textContent = 'Subject specialty';
-    document.getElementById('profExtra1').value = data?.subject_specialty || '—';
+    document.getElementById('profExtra1').value = data?.subject_specialty || '';
+    document.getElementById('profExtra1').placeholder = 'e.g. Science / Mathematics';
+
     wrap2.style.display = 'none';
+    wrap3.style.display = 'none';
+
   } else {
+    // Admin
     wrap1.style.display = 'none';
     wrap2.style.display = 'none';
+    wrap3.style.display = 'none';
+  }
+}
+
+async function handleSaveProfile(e) {
+  e.preventDefault();
+  const btn = document.getElementById('saveProfileBtn');
+  const statusEl = document.getElementById('profileStatus');
+  const fullName = document.getElementById('profFullName').value.trim();
+
+  if (!fullName) {
+    toast('Please enter your full name.', 'err');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    // 1. Update profiles table
+    const { error: profErr } = await supabaseClient
+      .from('profiles')
+      .update({ full_name: fullName })
+      .eq('id', currentUser.id);
+
+    if (profErr) throw profErr;
+
+    // Update in-memory profile and sidebar badge immediately
+    currentProfile.full_name = fullName;
+    const whoNameEl = document.getElementById('whoName');
+    if (whoNameEl) whoNameEl.textContent = fullName;
+
+    // 2. Role specific updates
+    if (currentProfile.role === 'student') {
+      const rollNo = document.getElementById('profExtra1').value.trim();
+      const className = document.getElementById('profExtra2').value.trim();
+      const guardianContact = document.getElementById('profExtra3').value.trim();
+
+      const { error: studentErr } = await supabaseClient
+        .from('students')
+        .upsert({
+          id: currentUser.id,
+          roll_no: rollNo || null,
+          class_name: className || null,
+          guardian_contact: guardianContact || null
+        });
+
+      if (studentErr) throw studentErr;
+
+    } else if (currentProfile.role === 'teacher') {
+      const subjectSpecialty = document.getElementById('profExtra1').value.trim();
+
+      const { error: teacherErr } = await supabaseClient
+        .from('teachers')
+        .upsert({
+          id: currentUser.id,
+          subject_specialty: subjectSpecialty || null
+        });
+
+      if (teacherErr) throw teacherErr;
+    }
+
+    toast('Profile updated successfully!', 'ok');
+    if (statusEl) {
+      statusEl.textContent = 'Saved successfully.';
+      statusEl.style.color = '#74c686';
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+    }
+
+  } catch (err) {
+    console.error('Failed to update profile:', err);
+    toast('Failed to save profile: ' + (err.message || 'Unknown error'), 'err');
+    if (statusEl) {
+      statusEl.textContent = 'Error saving profile.';
+      statusEl.style.color = '#ef4444';
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save changes';
+  }
+}
+
+async function handleChangePassword(e) {
+  e.preventDefault();
+  const btn = document.getElementById('changePasswordBtn');
+  const newPass = document.getElementById('newPassword').value;
+  const confPass = document.getElementById('confirmPassword').value;
+
+  if (newPass.length < 6) {
+    toast('Password must be at least 6 characters long.', 'err');
+    return;
+  }
+  if (newPass !== confPass) {
+    toast('Passwords do not match.', 'err');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Updating password…';
+
+  try {
+    const { error } = await supabaseClient.auth.updateUser({
+      password: newPass
+    });
+    if (error) throw error;
+
+    toast('Password changed successfully!', 'ok');
+    document.getElementById('passwordForm').reset();
+  } catch (err) {
+    console.error('Failed to change password:', err);
+    toast('Failed to change password: ' + (err.message || 'Unknown error'), 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Update password';
   }
 }
 

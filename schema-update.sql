@@ -1,6 +1,6 @@
 -- ============================================================
 -- SIMS Schema Update — Run in Supabase SQL Editor
--- Adds: teacher approval, announcements table
+-- Adds: teacher approval, announcements table, profile self-update
 -- ============================================================
 
 -- 1. Add 'approved' column to teachers table
@@ -45,6 +45,21 @@ create policy "admin updates teachers" on public.teachers
 drop policy if exists "admin views all teachers" on public.teachers;
 create policy "admin views all teachers" on public.teachers
   for select using (public.is_admin());
+
+-- 7. Allow users to update their own profile (Admin, Teacher, Student)
+drop policy if exists "users update own profile" on public.profiles;
+create policy "users update own profile" on public.profiles
+  for update using (auth.uid() = id);
+
+-- 8. Allow students to update their own student details
+drop policy if exists "students update own row" on public.students;
+create policy "students update own row" on public.students
+  for update using (auth.uid() = id);
+
+-- 9. Allow teachers to update their own teacher details
+drop policy if exists "teachers update own row" on public.teachers;
+create policy "teachers update own row" on public.teachers
+  for update using (auth.uid() = id);
 
 -- ============================================================
 -- Done! Run this in Supabase SQL Editor.

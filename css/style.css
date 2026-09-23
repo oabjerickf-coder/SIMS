@@ -184,6 +184,14 @@ a {
   letter-spacing: 0.01em;
 }
 
+/* Form row grid for multi-column inputs */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
 /* Form Fields & Inset Inputs */
 .field {
   margin-bottom: 18px;

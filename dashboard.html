@@ -61,17 +61,65 @@
       </div>
     </section>
 
-    <!-- ================= View Profile (Student + Teacher) ================= -->
+    <!-- ================= View Profile (Student + Teacher + Admin) ================= -->
     <section class="view" id="view-view_profile">
       <div class="panel glass">
         <h3>My profile</h3>
-        <p class="sub">Your account details on record.</p>
-        <div class="form-row">
-          <div class="field"><label>Full name</label><input id="profFullName" disabled></div>
-          <div class="field"><label>Email</label><input id="profEmail" disabled></div>
-          <div class="field" id="profExtraWrap1" style="display:none;"><label id="profExtraLabel1"></label><input id="profExtra1" disabled></div>
-          <div class="field" id="profExtraWrap2" style="display:none;"><label id="profExtraLabel2"></label><input id="profExtra2" disabled></div>
-        </div>
+        <p class="sub">View and update your personal information.</p>
+
+        <form id="profileForm">
+          <div class="form-row">
+            <div class="field">
+              <label for="profFullName">Full name</label>
+              <input type="text" id="profFullName" placeholder="Your full name" required>
+            </div>
+            <div class="field">
+              <label for="profEmail">Email (login address)</label>
+              <input type="email" id="profEmail" disabled style="opacity:0.7; cursor:not-allowed;" title="Email cannot be changed directly">
+            </div>
+            <div class="field">
+              <label for="profRole">Role</label>
+              <input type="text" id="profRole" disabled style="opacity:0.7; cursor:not-allowed; text-transform:capitalize;">
+            </div>
+            <div class="field" id="profExtraWrap1" style="display:none;">
+              <label id="profExtraLabel1" for="profExtra1">Additional detail</label>
+              <input type="text" id="profExtra1" placeholder="">
+            </div>
+            <div class="field" id="profExtraWrap2" style="display:none;">
+              <label id="profExtraLabel2" for="profExtra2">Class / Section</label>
+              <input type="text" id="profExtra2" placeholder="e.g. 10-A">
+            </div>
+            <div class="field" id="profExtraWrap3" style="display:none;">
+              <label id="profExtraLabel3" for="profExtra3">Guardian contact</label>
+              <input type="text" id="profExtra3" placeholder="e.g. 09123456789">
+            </div>
+          </div>
+          <div style="margin-top:18px; display:flex; align-items:center; gap:12px;">
+            <button class="btn btn-primary" type="submit" id="saveProfileBtn" style="width:auto; padding:11px 24px;">Save changes</button>
+            <span id="profileStatus" style="font-size:13px; color:var(--text-muted);"></span>
+          </div>
+        </form>
+
+        <hr style="margin:32px 0 24px; border:0; border-top:1px solid rgba(255,255,255,0.08);">
+
+        <h4 style="font-family:var(--serif); font-size:18px; margin-bottom:8px;">Security & Password</h4>
+        <p class="sub" style="margin-bottom:16px;">Update your password to keep your account secure.</p>
+        <form id="passwordForm">
+          <div class="form-row">
+            <div class="field">
+              <label for="newPassword">New password</label>
+              <input type="password" id="newPassword" placeholder="Minimum 6 characters" minlength="6" required>
+            </div>
+            <div class="field">
+              <label for="confirmPassword">Confirm new password</label>
+              <input type="password" id="confirmPassword" placeholder="Re-enter password" minlength="6" required>
+            </div>
+          </div>
+          <div style="margin-top:18px;">
+            <button class="btn btn-ghost" type="submit" id="changePasswordBtn" style="width:auto; padding:11px 24px;">Update password</button>
+          </div>
+        </form>
+
       </div>
     </section>
 
