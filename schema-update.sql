@@ -49,17 +49,26 @@ create policy "admin views all teachers" on public.teachers
 -- 7. Allow users to update their own profile (Admin, Teacher, Student)
 drop policy if exists "users update own profile" on public.profiles;
 create policy "users update own profile" on public.profiles
-  for update using (auth.uid() = id);
+  for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- 8. Allow students to update their own student details
+-- 8. Ensure guardian_contact exists and allow students to insert/update their own student details
+alter table public.students
+  add column if not exists guardian_contact text;
+
 drop policy if exists "students update own row" on public.students;
+drop policy if exists "students insert own row" on public.students;
+create policy "students insert own row" on public.students
+  for insert with check (auth.uid() = id);
 create policy "students update own row" on public.students
-  for update using (auth.uid() = id);
+  for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- 9. Allow teachers to update their own teacher details
+-- 9. Allow teachers to insert/update their own teacher details
 drop policy if exists "teachers update own row" on public.teachers;
+drop policy if exists "teachers insert own row" on public.teachers;
+create policy "teachers insert own row" on public.teachers
+  for insert with check (auth.uid() = id);
 create policy "teachers update own row" on public.teachers
-  for update using (auth.uid() = id);
+  for update using (auth.uid() = id) with check (auth.uid() = id);
 
 -- 10. Add 'avatar_url' column to profiles table
 alter table public.profiles

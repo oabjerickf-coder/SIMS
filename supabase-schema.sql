@@ -9,6 +9,7 @@ create table if not exists public.profiles (
   full_name text not null,
   email text not null,
   role text not null check (role in ('student','teacher','admin')),
+  avatar_url text,
   created_at timestamptz default now()
 );
 
@@ -100,6 +101,9 @@ create policy "view own profile" on public.profiles
 create policy "admin updates any profile" on public.profiles
   for update using (public.is_admin());
 
+create policy "users update own profile" on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
 -- STUDENTS policies
 create policy "view own student row" on public.students
   for select using (auth.uid() = id or public.is_admin() or public.is_teacher());
@@ -107,9 +111,21 @@ create policy "view own student row" on public.students
 create policy "admin manages students" on public.students
   for all using (public.is_admin());
 
+create policy "students insert own row" on public.students
+  for insert with check (auth.uid() = id);
+
+create policy "students update own row" on public.students
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
 -- TEACHERS policies
 create policy "view own teacher row" on public.teachers
   for select using (auth.uid() = id or public.is_admin());
+
+create policy "teachers insert own row" on public.teachers
+  for insert with check (auth.uid() = id);
+
+create policy "teachers update own row" on public.teachers
+  for update using (auth.uid() = id) with check (auth.uid() = id);
 
 -- GRADES policies
 create policy "student views own grades" on public.grades

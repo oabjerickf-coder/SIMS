@@ -406,28 +406,56 @@ async function handleSaveProfile(e) {
       const className = document.getElementById('profExtra2').value.trim();
       const guardianContact = document.getElementById('profExtra3').value.trim();
 
-      const { error: studentErr } = await supabaseClient
+      const studentPayload = {
+        roll_no: rollNo || null,
+        class_name: className || null,
+        guardian_contact: guardianContact || null
+      };
+
+      const { data: updated, error: studentErr } = await supabaseClient
         .from('students')
-        .upsert({
-          id: currentUser.id,
-          roll_no: rollNo || null,
-          class_name: className || null,
-          guardian_contact: guardianContact || null
-        });
+        .update(studentPayload)
+        .eq('id', currentUser.id)
+        .select();
 
       if (studentErr) throw studentErr;
+
+      // If row didn't exist yet, insert it
+      if (!updated || updated.length === 0) {
+        const { error: insertErr } = await supabaseClient
+          .from('students')
+          .insert({
+            id: currentUser.id,
+            ...studentPayload
+          });
+        if (insertErr) throw insertErr;
+      }
 
     } else if (currentProfile.role === 'teacher') {
       const subjectSpecialty = document.getElementById('profExtra1').value.trim();
 
-      const { error: teacherErr } = await supabaseClient
+      const teacherPayload = {
+        subject_specialty: subjectSpecialty || null
+      };
+
+      const { data: updated, error: teacherErr } = await supabaseClient
         .from('teachers')
-        .upsert({
-          id: currentUser.id,
-          subject_specialty: subjectSpecialty || null
-        });
+        .update(teacherPayload)
+        .eq('id', currentUser.id)
+        .select();
 
       if (teacherErr) throw teacherErr;
+
+      // If row didn't exist yet, insert it
+      if (!updated || updated.length === 0) {
+        const { error: insertErr } = await supabaseClient
+          .from('teachers')
+          .insert({
+            id: currentUser.id,
+            ...teacherPayload
+          });
+        if (insertErr) throw insertErr;
+      }
     }
 
     toast('Profile updated successfully!', 'ok');
