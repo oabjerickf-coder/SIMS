@@ -20,8 +20,14 @@
     </div>
 
     <div class="who">
-      <div class="name" id="whoName">—</div>
-      <span class="role" id="whoRole">—</span>
+      <div class="who-avatar">
+        <img id="whoAvatarImg" src="" alt="Avatar" style="display:none;">
+        <span id="whoAvatarInitial">U</span>
+      </div>
+      <div class="who-meta">
+        <div class="name" id="whoName">—</div>
+        <span class="role" id="whoRole">—</span>
+      </div>
     </div>
 
     <nav class="nav" id="navList"><!-- injected by role --></nav>
@@ -66,6 +72,27 @@
       <div class="panel glass">
         <h3>My profile</h3>
         <p class="sub">View and update your personal information.</p>
+
+        <!-- Profile Picture Upload Card -->
+        <div class="avatar-card">
+          <div class="avatar-lg">
+            <img id="profAvatarImg" src="" alt="Profile photo" style="display:none;">
+            <span id="profAvatarInitial">U</span>
+          </div>
+          <div class="avatar-meta">
+            <h4>Profile photo</h4>
+            <p>Upload a PNG image for your account. (Max 2MB)</p>
+            <div class="avatar-actions">
+              <input type="file" id="avatarFileInput" accept=".png,image/png" style="display:none;">
+              <button type="button" class="btn btn-ghost" id="chooseAvatarBtn" style="width:auto; height:38px; padding:0 16px; font-size:13px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload PNG
+              </button>
+              <button type="button" class="btn-text-danger" id="removeAvatarBtn" style="display:none;">Remove photo</button>
+            </div>
+            <span id="avatarUploadStatus" style="font-size:12px; color:var(--text-muted); margin-top:6px; display:block;"></span>
+          </div>
+        </div>
 
         <form id="profileForm">
           <div class="form-row">

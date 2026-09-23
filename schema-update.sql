@@ -61,6 +61,10 @@ drop policy if exists "teachers update own row" on public.teachers;
 create policy "teachers update own row" on public.teachers
   for update using (auth.uid() = id);
 
+-- 10. Add 'avatar_url' column to profiles table
+alter table public.profiles
+  add column if not exists avatar_url text;
+
 -- ============================================================
 -- Done! Run this in Supabase SQL Editor.
 -- ============================================================

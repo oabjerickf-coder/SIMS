@@ -78,6 +78,7 @@ async function init() {
 
   document.getElementById('whoName').textContent = profile.full_name;
   document.getElementById('whoRole').textContent = profile.role;
+  updateAvatarDisplay(profile.avatar_url, profile.full_name);
 
   buildNav(profile.role);
 
@@ -95,6 +96,11 @@ async function init() {
   document.getElementById('announcementForm')?.addEventListener('submit', handlePostAnnouncement);
   document.getElementById('profileForm')?.addEventListener('submit', handleSaveProfile);
   document.getElementById('passwordForm')?.addEventListener('submit', handleChangePassword);
+  document.getElementById('chooseAvatarBtn')?.addEventListener('click', () => {
+    document.getElementById('avatarFileInput')?.click();
+  });
+  document.getElementById('avatarFileInput')?.addEventListener('change', handleAvatarUpload);
+  document.getElementById('removeAvatarBtn')?.addEventListener('click', handleRemoveAvatar);
 }
 
 function buildNav(role) {
@@ -313,6 +319,7 @@ async function loadProfileView() {
   document.getElementById('profFullName').value = currentProfile.full_name || '';
   document.getElementById('profEmail').value = currentProfile.email || '';
   document.getElementById('profRole').value = currentProfile.role || '';
+  updateAvatarDisplay(currentProfile.avatar_url, currentProfile.full_name);
 
   const wrap1 = document.getElementById('profExtraWrap1');
   const wrap2 = document.getElementById('profExtraWrap2');
@@ -391,6 +398,7 @@ async function handleSaveProfile(e) {
     currentProfile.full_name = fullName;
     const whoNameEl = document.getElementById('whoName');
     if (whoNameEl) whoNameEl.textContent = fullName;
+    updateAvatarDisplay(currentProfile.avatar_url, fullName);
 
     // 2. Role specific updates
     if (currentProfile.role === 'student') {
@@ -474,6 +482,151 @@ async function handleChangePassword(e) {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Update password';
+  }
+}
+
+/* ============== AVATAR (PNG Upload & Display) ============== */
+function updateAvatarDisplay(avatarUrl, fullName) {
+  const initial = (fullName || 'U').trim().charAt(0).toUpperCase() || 'U';
+
+  // 1. Sidebar avatar
+  const whoImg = document.getElementById('whoAvatarImg');
+  const whoInit = document.getElementById('whoAvatarInitial');
+  if (whoImg && whoInit) {
+    if (avatarUrl) {
+      whoImg.src = avatarUrl;
+      whoImg.style.display = 'block';
+      whoInit.style.display = 'none';
+    } else {
+      whoImg.style.display = 'none';
+      whoInit.textContent = initial;
+      whoInit.style.display = 'block';
+    }
+  }
+
+  // 2. Profile view avatar
+  const profImg = document.getElementById('profAvatarImg');
+  const profInit = document.getElementById('profAvatarInitial');
+  const removeBtn = document.getElementById('removeAvatarBtn');
+  if (profImg && profInit) {
+    if (avatarUrl) {
+      profImg.src = avatarUrl;
+      profImg.style.display = 'block';
+      profInit.style.display = 'none';
+      if (removeBtn) removeBtn.style.display = 'inline-block';
+    } else {
+      profImg.style.display = 'none';
+      profInit.textContent = initial;
+      profInit.style.display = 'block';
+      if (removeBtn) removeBtn.style.display = 'none';
+    }
+  }
+}
+
+async function handleAvatarUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Strict PNG validation
+  const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+  if (!isPng) {
+    toast('PNG images only! Please select a valid .png file.', 'err');
+    e.target.value = '';
+    return;
+  }
+
+  // Size limit (max 2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    toast('Image is too large. Maximum size is 2MB.', 'err');
+    e.target.value = '';
+    return;
+  }
+
+  const statusEl = document.getElementById('avatarUploadStatus');
+  if (statusEl) {
+    statusEl.textContent = 'Processing PNG image…';
+    statusEl.style.color = 'var(--text-muted)';
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = async () => {
+      try {
+        // Optimize and crop to square 200x200 PNG using HTML5 Canvas
+        const canvas = document.createElement('canvas');
+        const size = 200;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        const minSide = Math.min(img.width, img.height);
+        const sx = (img.width - minSide) / 2;
+        const sy = (img.height - minSide) / 2;
+
+        ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+        const pngDataUrl = canvas.toDataURL('image/png');
+
+        if (statusEl) statusEl.textContent = 'Saving profile photo…';
+
+        const { error } = await supabaseClient
+          .from('profiles')
+          .update({ avatar_url: pngDataUrl })
+          .eq('id', currentUser.id);
+
+        if (error) throw error;
+
+        currentProfile.avatar_url = pngDataUrl;
+        updateAvatarDisplay(pngDataUrl, currentProfile.full_name);
+        toast('Profile photo updated successfully!', 'ok');
+
+        if (statusEl) {
+          statusEl.textContent = 'PNG photo updated successfully.';
+          statusEl.style.color = '#74c686';
+          setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+        }
+      } catch (err) {
+        console.error('Failed to save avatar:', err);
+        toast('Could not save avatar: ' + (err.message || 'Unknown error'), 'err');
+        if (statusEl) {
+          statusEl.textContent = 'Upload failed.';
+          statusEl.style.color = '#ef4444';
+        }
+      } finally {
+        e.target.value = '';
+      }
+    };
+    img.onerror = () => {
+      toast('Failed to load the image. Please try another PNG file.', 'err');
+      if (statusEl) statusEl.textContent = '';
+      e.target.value = '';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function handleRemoveAvatar() {
+  if (!confirm('Remove your profile photo?')) return;
+  const statusEl = document.getElementById('avatarUploadStatus');
+  if (statusEl) statusEl.textContent = 'Removing…';
+
+  try {
+    const { error } = await supabaseClient
+      .from('profiles')
+      .update({ avatar_url: null })
+      .eq('id', currentUser.id);
+
+    if (error) throw error;
+
+    currentProfile.avatar_url = null;
+    updateAvatarDisplay(null, currentProfile.full_name);
+    toast('Profile photo removed.', 'ok');
+    if (statusEl) statusEl.textContent = '';
+  } catch (err) {
+    console.error('Failed to remove avatar:', err);
+    toast('Failed to remove photo: ' + (err.message || 'Unknown error'), 'err');
+    if (statusEl) statusEl.textContent = '';
   }
 }
 
