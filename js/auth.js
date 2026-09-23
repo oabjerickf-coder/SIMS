@@ -153,11 +153,14 @@ form.addEventListener('submit', async (e) => {
    FORGOT PASSWORD & 6-DIGIT OTP VERIFICATION
    ============================================================ */
 const forgotModal = document.getElementById('forgotModal');
+const forgotModalTitle = document.getElementById('forgotModalTitle');
 const forgotEmail = document.getElementById('forgotEmail');
 const forgotErrorBox = document.getElementById('forgotErrorBox');
 const forgotStep1 = document.getElementById('forgotStep1');
 const forgotStep2 = document.getElementById('forgotStep2');
+const forgotStep3 = document.getElementById('forgotStep3');
 const sendOtpBtn = document.getElementById('sendOtpBtn');
+const verifyOtpBtn = document.getElementById('verifyOtpBtn');
 const resetPassBtn = document.getElementById('resetPassBtn');
 const resendOtpBtn = document.getElementById('resendOtpBtn');
 const changeEmailStepBtn = document.getElementById('changeEmailStepBtn');
@@ -188,8 +191,10 @@ function openForgotModal() {
   const currentEmail = document.getElementById('email').value.trim();
   if (currentEmail) forgotEmail.value = currentEmail;
 
+  if (forgotModalTitle) forgotModalTitle.textContent = 'Reset password';
   forgotStep1.style.display = 'block';
   forgotStep2.style.display = 'none';
+  forgotStep3.style.display = 'none';
   if (forgotModal) forgotModal.style.display = 'flex';
   setTimeout(() => forgotEmail?.focus(), 100);
 }
@@ -225,11 +230,11 @@ sendOtpBtn?.addEventListener('click', async () => {
 
     targetEmail = email;
     if (sentEmailDisplay) sentEmailDisplay.textContent = email;
+    if (forgotModalTitle) forgotModalTitle.textContent = 'Verify OTP code';
     forgotStep1.style.display = 'none';
     forgotStep2.style.display = 'block';
+    forgotStep3.style.display = 'none';
     otpCodeInput.value = '';
-    forgotNewPass.value = '';
-    forgotConfirmPass.value = '';
     setTimeout(() => otpCodeInput?.focus(), 100);
 
     startResendCountdown();
@@ -282,36 +287,28 @@ resendOtpBtn?.addEventListener('click', async () => {
 changeEmailStepBtn?.addEventListener('click', () => {
   clearInterval(resendTimer);
   hideForgotError();
+  if (forgotModalTitle) forgotModalTitle.textContent = 'Reset password';
   forgotStep2.style.display = 'none';
+  forgotStep3.style.display = 'none';
   forgotStep1.style.display = 'block';
   forgotEmail.focus();
 });
 
-// Step 2: Verify 6-digit OTP code & Reset Password
-resetPassBtn?.addEventListener('click', async () => {
+// Step 2: Verify 6-digit OTP code ONLY (Password fields are hidden until this succeeds)
+verifyOtpBtn?.addEventListener('click', async () => {
   const code = otpCodeInput.value.trim();
-  const newPass = forgotNewPass.value;
-  const confirmPass = forgotConfirmPass.value;
 
   if (!code || code.length < 6) {
-    showForgotError('Please enter the 6-digit OTP verification code.');
-    return;
-  }
-  if (newPass.length < 6) {
-    showForgotError('New password must be at least 6 characters long.');
-    return;
-  }
-  if (newPass !== confirmPass) {
-    showForgotError('Passwords do not match. Please re-enter.');
+    showForgotError('Please enter the complete 6-digit OTP verification code.');
     return;
   }
 
   hideForgotError();
-  resetPassBtn.disabled = true;
-  resetPassBtn.textContent = 'Verifying & resetting…';
+  verifyOtpBtn.disabled = true;
+  verifyOtpBtn.textContent = 'Verifying code…';
 
   try {
-    // 1. Verify 6-digit OTP code (recovery or email type)
+    // Verify 6-digit OTP code with Supabase
     let verifyRes = await supabaseClient.auth.verifyOtp({
       email: targetEmail,
       token: code,
@@ -330,13 +327,48 @@ resetPassBtn?.addEventListener('click', async () => {
       throw new Error('Invalid or expired 6-digit OTP code. Please check your Gmail or request a new code.');
     }
 
-    // 2. User session is now authenticated, update password
+    // OTP Verified successfully! Now reveal password fields
+    if (forgotModalTitle) forgotModalTitle.textContent = 'Create new password';
+    forgotStep2.style.display = 'none';
+    forgotStep3.style.display = 'block';
+    forgotNewPass.value = '';
+    forgotConfirmPass.value = '';
+    setTimeout(() => forgotNewPass?.focus(), 100);
+
+  } catch (err) {
+    console.error('OTP verification failed:', err);
+    showForgotError(err.message || 'Invalid 6-digit OTP code.');
+  } finally {
+    verifyOtpBtn.disabled = false;
+    verifyOtpBtn.textContent = 'Verify Code';
+  }
+});
+
+// Step 3: Set New Password (Only runs after OTP has been verified)
+resetPassBtn?.addEventListener('click', async () => {
+  const newPass = forgotNewPass.value;
+  const confirmPass = forgotConfirmPass.value;
+
+  if (newPass.length < 6) {
+    showForgotError('New password must be at least 6 characters long.');
+    return;
+  }
+  if (newPass !== confirmPass) {
+    showForgotError('Passwords do not match. Please re-enter.');
+    return;
+  }
+
+  hideForgotError();
+  resetPassBtn.disabled = true;
+  resetPassBtn.textContent = 'Updating password…';
+
+  try {
     const { error: updateErr } = await supabaseClient.auth.updateUser({
       password: newPass
     });
     if (updateErr) throw updateErr;
 
-    // 3. Clean sign out so user logs in with new credentials
+    // Clean sign out so user logs in with new credentials
     await supabaseClient.auth.signOut();
 
     closeForgotModal();
@@ -344,14 +376,14 @@ resetPassBtn?.addEventListener('click', async () => {
     // Fill login form and display success message
     document.getElementById('email').value = targetEmail;
     document.getElementById('password').value = '';
-    showError('Password reset successfully! You can now log in with your new password.');
+    showError('Password reset successful! You can now log in with your new password.');
     errorBox.style.color = '#bfe8c8';
 
   } catch (err) {
     console.error('Password reset failed:', err);
-    showForgotError(err.message || 'Password reset failed. Please check the code and try again.');
+    showForgotError(err.message || 'Failed to update password. Please try again.');
   } finally {
     resetPassBtn.disabled = false;
-    resetPassBtn.textContent = 'Reset Password';
+    resetPassBtn.textContent = 'Set New Password';
   }
 });

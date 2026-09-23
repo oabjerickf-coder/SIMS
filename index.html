@@ -75,7 +75,7 @@
   <div class="modal-overlay" id="forgotModal" style="display:none;" onclick="if(event.target===this)closeForgotModal()">
     <div class="modal-card glass" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <h3>Reset password</h3>
+        <h3 id="forgotModalTitle">Reset password</h3>
         <button class="modal-close" id="closeForgotModalBtn" type="button" aria-label="Close" onclick="closeForgotModal()">&times;</button>
       </div>
       <div class="modal-body" style="padding:24px 28px;">
@@ -93,15 +93,32 @@
           <button type="button" class="btn btn-primary" id="sendOtpBtn" style="margin-top:8px;">Send 6-digit code</button>
         </div>
 
-        <!-- Step 2: Verify OTP & New Password -->
+        <!-- Step 2: Verify OTP only (No password fields yet) -->
         <div id="forgotStep2" style="display:none;">
           <p style="margin-bottom:16px; color:var(--text-muted); font-size:13.5px; line-height:1.5;">
-            We sent a 6-digit OTP code to <strong id="sentEmailDisplay" style="color:var(--gold-light);"></strong>. Please enter the code and your new password below.
+            We sent a 6-digit OTP code to <strong id="sentEmailDisplay" style="color:var(--gold-light);"></strong>. Enter the 6-digit code below to verify your identity.
           </p>
           <div class="field">
             <label for="otpCodeInput">6-digit OTP code</label>
-            <input type="text" id="otpCodeInput" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:6px; font-size:20px; font-weight:700; text-align:center;" required>
+            <input type="text" id="otpCodeInput" placeholder="123456" maxlength="6" inputmode="numeric" style="letter-spacing:6px; font-size:22px; font-weight:700; text-align:center;" required>
           </div>
+          <button type="button" class="btn btn-primary" id="verifyOtpBtn" style="margin-top:8px;">Verify Code</button>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; font-size:13px;">
+            <button type="button" class="btn-link" id="resendOtpBtn" disabled style="opacity:0.6;">Resend code (60s)</button>
+            <button type="button" class="btn-link" id="changeEmailStepBtn" style="color:var(--text-muted);">Change email</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Set New Password (Only shown AFTER OTP is verified) -->
+        <div id="forgotStep3" style="display:none;">
+          <div style="display:inline-flex; align-items:center; gap:6px; background:rgba(34, 197, 94, 0.15); border:1px solid rgba(34, 197, 94, 0.3); color:#86efac; padding:4px 10px; border-radius:20px; font-size:12px; margin-bottom:14px; font-weight:600;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            OTP Verified
+          </div>
+          <p style="margin-bottom:16px; color:var(--text-muted); font-size:13.5px; line-height:1.5;">
+            Your code is verified! You may now set your new password.
+          </p>
           <div class="field">
             <label for="forgotNewPass">New password</label>
             <input type="password" id="forgotNewPass" placeholder="Minimum 6 characters" minlength="6" required>
@@ -110,12 +127,7 @@
             <label for="forgotConfirmPass">Confirm new password</label>
             <input type="password" id="forgotConfirmPass" placeholder="Re-enter new password" minlength="6" required>
           </div>
-          <button type="button" class="btn btn-primary" id="resetPassBtn" style="margin-top:8px;">Reset Password</button>
-
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; font-size:13px;">
-            <button type="button" class="btn-link" id="resendOtpBtn" disabled style="opacity:0.6;">Resend code (60s)</button>
-            <button type="button" class="btn-link" id="changeEmailStepBtn" style="color:var(--text-muted);">Change email</button>
-          </div>
+          <button type="button" class="btn btn-primary" id="resetPassBtn" style="margin-top:8px;">Set New Password</button>
         </div>
 
       </div>
