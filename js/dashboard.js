@@ -170,55 +170,112 @@ async function updateNotifBadge() {
   }
 }
 
+function closeAnnouncementsModal() {
+  const modal = document.getElementById('announcementsModal');
+  if (modal) modal.style.display = 'none';
+}
+window.closeAnnouncementsModal = closeAnnouncementsModal;
+
+function setupAnnouncementsModalEvents() {
+  const closeBtn = document.getElementById('closeAnnouncementsModal');
+  if (closeBtn) closeBtn.onclick = closeAnnouncementsModal;
+
+  const modal = document.getElementById('announcementsModal');
+  if (modal) {
+    modal.onclick = (e) => {
+      if (e.target === modal) closeAnnouncementsModal();
+    };
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeAnnouncementsModal();
+  });
+}
+
+// Bind modal events right away
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupAnnouncementsModalEvents);
+} else {
+  setupAnnouncementsModalEvents();
+}
+
 async function openAnnouncementsModal() {
   const modal = document.getElementById('announcementsModal');
   const body = document.getElementById('announcementsModalBody');
   const empty = document.getElementById('announcementsModalEmpty');
+  if (!modal) return;
   modal.style.display = 'flex';
 
-  body.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Loading…</p>';
-  empty.style.display = 'none';
+  setupAnnouncementsModalEvents();
 
-  const { data, error } = await supabaseClient
-    .from('announcements')
-    .select('id, title, body, created_at, profiles!announcements_posted_by_fkey(full_name)')
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  body.innerHTML = '';
-
-  if (error) {
-    body.innerHTML = '<p style="color:var(--error);text-align:center;padding:20px;">Could not load announcements.</p>';
-    return;
+  if (body) {
+    body.querySelectorAll('.announcement-card, .load-error, .load-spin').forEach(el => el.remove());
+    const loadingP = document.createElement('p');
+    loadingP.className = 'load-spin';
+    loadingP.style.cssText = 'color:var(--text-muted);text-align:center;padding:24px;';
+    loadingP.textContent = 'Loading announcements…';
+    body.prepend(loadingP);
   }
+  if (empty) empty.style.display = 'none';
 
-  if (!data || !data.length) {
-    empty.style.display = 'block';
-    return;
+  try {
+    let announcements = [];
+    const res = await supabaseClient
+      .from('announcements')
+      .select('id, title, body, created_at, profiles(full_name)')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (res.error) {
+      console.warn('Query with profiles failed, attempting fallback query:', res.error);
+      const fallback = await supabaseClient
+        .from('announcements')
+        .select('id, title, body, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (fallback.error) throw fallback.error;
+      announcements = fallback.data || [];
+    } else {
+      announcements = res.data || [];
+    }
+
+    if (body) {
+      body.querySelectorAll('.load-spin, .load-error').forEach(el => el.remove());
+    }
+
+    if (!announcements.length) {
+      if (empty) empty.style.display = 'block';
+    } else {
+      if (empty) empty.style.display = 'none';
+      announcements.forEach(ann => {
+        const card = document.createElement('div');
+        card.className = 'announcement-card';
+        card.innerHTML = `
+          <div class="announcement-header">
+            <h4>${escapeHtml(ann.title)}</h4>
+            <span class="announcement-date">${formatDate(ann.created_at)}</span>
+          </div>
+          <p class="announcement-body">${escapeHtml(ann.body)}</p>
+          <p class="announcement-author">— ${escapeHtml(ann.profiles?.full_name || 'Admin')}</p>`;
+        body.appendChild(card);
+      });
+    }
+
+    // Mark as seen
+    localStorage.setItem('sims_last_seen_announcement', new Date().toISOString());
+    const badge = document.getElementById('notifBadge');
+    if (badge) badge.style.display = 'none';
+
+  } catch (err) {
+    console.error('Error loading announcements:', err);
+    if (body) {
+      body.querySelectorAll('.load-spin').forEach(el => el.remove());
+      const errP = document.createElement('p');
+      errP.className = 'load-error';
+      errP.style.cssText = 'color:var(--error);text-align:center;padding:24px;';
+      errP.textContent = 'Could not load announcements. Please check back later.';
+      body.appendChild(errP);
+    }
   }
-
-  // Mark as seen
-  localStorage.setItem('sims_last_seen_announcement', new Date().toISOString());
-  document.getElementById('notifBadge').style.display = 'none';
-
-  data.forEach(ann => {
-    const card = document.createElement('div');
-    card.className = 'announcement-card';
-    card.innerHTML = `
-      <div class="announcement-header">
-        <h4>${escapeHtml(ann.title)}</h4>
-        <span class="announcement-date">${formatDate(ann.created_at)}</span>
-      </div>
-      <p class="announcement-body">${escapeHtml(ann.body)}</p>
-      <p class="announcement-author">— ${escapeHtml(ann.profiles?.full_name || 'Admin')}</p>`;
-    body.appendChild(card);
-  });
-
-  // Close modal listeners
-  document.getElementById('closeAnnouncementsModal').onclick = () => modal.style.display = 'none';
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.style.display = 'none';
-  });
 }
 
 /* ============== STUDENT: View grade ============== */

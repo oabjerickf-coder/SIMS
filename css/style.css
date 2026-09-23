@@ -865,14 +865,17 @@ tr:hover td {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   color: var(--text-muted);
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 1;
   cursor: pointer;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
 .modal-close:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.16);
   color: var(--text-primary);
+  transform: scale(1.05);
 }
 
 .modal-body {
