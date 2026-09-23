@@ -294,12 +294,13 @@ changeEmailStepBtn?.addEventListener('click', () => {
   forgotEmail.focus();
 });
 
-// Step 2: Verify 6-digit OTP code ONLY (Password fields are hidden until this succeeds)
+// Step 2: Verify OTP code ONLY (Password fields are hidden until this succeeds)
 verifyOtpBtn?.addEventListener('click', async () => {
-  const code = otpCodeInput.value.trim();
+  // Strip any spaces, dashes, or formatting that user might paste from Gmail
+  const code = otpCodeInput.value.replace(/[\s-]+/g, '').trim();
 
   if (!code || code.length < 6) {
-    showForgotError('Please enter the complete 6-digit OTP verification code.');
+    showForgotError('Please enter the complete verification code.');
     return;
   }
 
@@ -308,7 +309,7 @@ verifyOtpBtn?.addEventListener('click', async () => {
   verifyOtpBtn.textContent = 'Verifying code…';
 
   try {
-    // Verify 6-digit OTP code with Supabase
+    // Verify OTP code with Supabase (supports both recovery token and email OTP)
     let verifyRes = await supabaseClient.auth.verifyOtp({
       email: targetEmail,
       token: code,
@@ -324,7 +325,7 @@ verifyOtpBtn?.addEventListener('click', async () => {
     }
 
     if (verifyRes.error) {
-      throw new Error('Invalid or expired 6-digit OTP code. Please check your Gmail or request a new code.');
+      throw new Error('Invalid or expired OTP code. Please check your Gmail or request a new code.');
     }
 
     // OTP Verified successfully! Now reveal password fields
@@ -337,7 +338,7 @@ verifyOtpBtn?.addEventListener('click', async () => {
 
   } catch (err) {
     console.error('OTP verification failed:', err);
-    showForgotError(err.message || 'Invalid 6-digit OTP code.');
+    showForgotError(err.message || 'Invalid OTP verification code.');
   } finally {
     verifyOtpBtn.disabled = false;
     verifyOtpBtn.textContent = 'Verify Code';
