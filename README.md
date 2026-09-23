@@ -16,10 +16,13 @@ Start → Login (username/password) → Login successful?
 
 ```
 simsystem/
+├── .gitignore            Prevents secret config files from being committed
 ├── index.html            Login / sign-up page
 ├── dashboard.html        Role-based dashboard (all views)
 ├── css/style.css         Glassmorphism design system
-├── js/supabase-client.js Your Supabase connection keys go here
+├── js/config.example.js  Template for Supabase credentials
+├── js/config.js          (Ignored by git) Your actual Supabase API keys
+├── js/supabase-client.js Initializes Supabase client
 ├── js/auth.js            Login / sign-up logic
 ├── js/dashboard.js       All dashboard views + data queries
 └── supabase-schema.sql   Database schema + security rules
@@ -49,12 +52,12 @@ For local testing: **Authentication → Providers → Email → turn off "Confir
 
 1. In Supabase: **Project Settings → API**.
 2. Copy the **Project URL** and the **anon public key**.
-3. Open `js/supabase-client.js` and replace:
+3. Duplicate `js/config.example.js` and save it as `js/config.js` (this file is ignored by `.gitignore` so your keys won't be pushed to Git):
    ```js
    const SUPABASE_URL = "https://YOUR-PROJECT-REF.supabase.co";
    const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
    ```
-   with your real values.
+4. Save the file.
 
 ## Step 5 — Run it locally
 
