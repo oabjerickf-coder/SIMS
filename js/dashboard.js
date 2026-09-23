@@ -29,6 +29,11 @@ const PAGE_META = {
 init();
 
 async function init() {
+  if (!supabaseClient) {
+    const loader = document.getElementById('loader');
+    if (loader) loader.textContent = 'Hindi makakonekta sa Supabase. Pakisuri ang js/config.js.';
+    return;
+  }
   const { data } = await supabaseClient.auth.getSession();
   if (!data.session) {
     window.location.href = 'index.html';

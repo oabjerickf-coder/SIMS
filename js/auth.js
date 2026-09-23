@@ -12,8 +12,13 @@ let mode = 'login'; // or 'signup'
 
 // If already logged in, skip straight to the dashboard
 (async () => {
-  const { data } = await supabaseClient.auth.getSession();
-  if (data.session) window.location.href = 'dashboard.html';
+  if (!supabaseClient) return;
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    if (data?.session) window.location.href = 'dashboard.html';
+  } catch (err) {
+    console.error('Session check failed:', err);
+  }
 })();
 
 switchBtn.addEventListener('click', () => {
@@ -43,6 +48,12 @@ function hideError() {
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   hideError();
+
+  if (!supabaseClient) {
+    showError('Hindi makakonekta sa database. Pakisuri kung maayos ang js/config.js at may internet connection.');
+    return;
+  }
+
   submitBtn.disabled = true;
   submitBtn.textContent = mode === 'signup' ? 'Creating account…' : 'Signing in…';
 

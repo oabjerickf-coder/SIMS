@@ -1,19 +1,23 @@
 // ============================================================
-// Supabase connection config
-// Actual credentials are now stored in js/config.js
-// which is ignored by Git via .gitignore to keep them private.
-// See js/config.example.js to set up a new environment.
+// Supabase client initialization
+// The actual credentials are read from js/config.js (window.SUPABASE_URL)
+// which is ignored by Git (.gitignore) to keep keys secure.
 // ============================================================
 
-const url = typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "";
-const anonKey = typeof SUPABASE_ANON_KEY !== "undefined" ? SUPABASE_ANON_KEY : "";
+const SUPABASE_URL = (typeof window !== "undefined" && window.SUPABASE_URL)
+  ? window.SUPABASE_URL
+  : (typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "");
 
-if (!url || !anonKey || url === "YOUR_SUPABASE_PROJECT_URL" || anonKey === "YOUR_SUPABASE_ANON_PUBLIC_KEY") {
-    console.error(
-        "Supabase configuration missing or incomplete! Please ensure js/config.js is created with valid SUPABASE_URL and SUPABASE_ANON_KEY. Refer to js/config.example.js."
-    );
+const SUPABASE_ANON_KEY = (typeof window !== "undefined" && window.SUPABASE_ANON_KEY)
+  ? window.SUPABASE_ANON_KEY
+  : (typeof SUPABASE_ANON_KEY !== "undefined" ? SUPABASE_ANON_KEY : "");
+
+if (!window.supabase) {
+  console.error("Supabase library not loaded! Check CDN or network connection.");
+} else if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL === "YOUR_SUPABASE_PROJECT_URL") {
+  console.error("Supabase config missing or invalid! Ensure js/config.js has valid SUPABASE_URL and SUPABASE_ANON_KEY.");
 }
 
-const supabaseClient = window.supabase && url && anonKey
-    ? window.supabase.createClient(url, anonKey)
-    : null;
+const supabaseClient = (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== "YOUR_SUPABASE_PROJECT_URL")
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
