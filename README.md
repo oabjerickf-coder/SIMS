@@ -21,7 +21,8 @@ simsystem/
 ├── css/style.css         Glassmorphism design system
 ├── js/supabase-client.js Your Supabase connection keys go here
 ├── js/auth.js            Login / sign-up logic
-├── js/dashboard.js       All dashboard views + data queries
+├── js/dashboard.js       All dashboard views + realtime engine
+├── realtime-setup.sql    Supabase Realtime configuration script
 └── supabase-schema.sql   Database schema + security rules
 ```
 
@@ -30,14 +31,15 @@ simsystem/
 1. Go to **supabase.com** → sign in → **New project**.
 2. Pick a name, database password, and region. Wait ~2 minutes for it to provision.
 
-## Step 2 — Run the database schema
+## Step 2 — Run the database schema & Realtime setup
 
 1. In your Supabase project, open **SQL Editor** → **New query**.
-2. Open `supabase-schema.sql` from this project, copy all of it, paste it in, and click **Run**.
+2. Open `supabase-schema.sql` (or `realtime-setup.sql` if updating an existing project), copy all of it, paste it in, and click **Run**.
 3. This creates:
-   - `profiles`, `students`, `teachers`, `grades` tables
-   - A trigger that auto-fills `profiles`/`students`/`teachers` whenever someone signs up
-   - Row Level Security policies so students only see their own data, teachers can manage grades, and admins can see everything
+   - `profiles`, `students`, `teachers`, `grades`, `announcements` tables
+   - Auto-provisioning trigger when users register
+   - Row Level Security (RLS) policies
+   - **Realtime Publication (`supabase_realtime`) & Replica Identity FULL** so updates broadcast to all connected users instantly without needing page refreshes.
 
 ## Step 3 — Turn off email confirmation (optional, for quick testing)
 

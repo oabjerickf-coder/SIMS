@@ -138,6 +138,50 @@ create policy "teacher updates grades" on public.grades
   for update using (public.is_teacher() or public.is_admin());
 
 -- ============================================================
+-- Realtime Publication Setup
+-- ============================================================
+alter table public.grades replica identity full;
+alter table public.teachers replica identity full;
+alter table public.students replica identity full;
+alter table public.profiles replica identity full;
+
+do $$
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'grades'
+  ) then
+    alter publication supabase_realtime add table public.grades;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'teachers'
+  ) then
+    alter publication supabase_realtime add table public.teachers;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'students'
+  ) then
+    alter publication supabase_realtime add table public.students;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'profiles'
+  ) then
+    alter publication supabase_realtime add table public.profiles;
+  end if;
+end $$;
+
+-- ============================================================
 -- Done. Next: create a Storage/Auth setup is not required —
 -- Supabase Auth (email/password) is used out of the box.
 -- ============================================================
+

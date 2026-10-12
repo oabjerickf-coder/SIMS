@@ -1,5 +1,7 @@
 let currentUser = null;
 let currentProfile = null;
+let currentActiveView = null;
+let realtimeChannel = null;
 
 const NAV_BY_ROLE = {
   student: [
@@ -59,7 +61,7 @@ async function init() {
   }
   currentProfile = profile;
 
-  // Block unapproved teachers from dashboard
+  // Block unapproved teachers from dashboard (with realtime listener)
   if (profile.role === 'teacher') {
     const { data: teacher } = await supabaseClient
       .from('teachers')
@@ -70,8 +72,20 @@ async function init() {
     if (!teacher || teacher.approved !== true) {
       const loader = document.getElementById('loader');
       if (loader) {
-        loader.innerHTML = '<div style="text-align:center;max-width:400px;"><h2 style="font-family:var(--serif);margin-bottom:12px;">Pending Approval</h2><p style="color:var(--text-muted);margin-bottom:20px;">Your teacher account is waiting for admin approval. Please check back later.</p><button class="btn btn-ghost" onclick="supabaseClient.auth.signOut().then(()=>window.location.href=\'index.html\')" style="width:auto;padding:10px 20px;">Back to Login</button></div>';
+        loader.innerHTML = `
+          <div style="text-align:center;max-width:420px;padding:24px;">
+            <div style="margin-bottom:16px;">
+              <span class="realtime-status-pill connecting" style="display:inline-flex;">
+                <span class="realtime-dot"></span>
+                <span>Naghihintay ng Approval (Live)</span>
+              </span>
+            </div>
+            <h2 style="font-family:var(--serif);margin-bottom:12px;font-size:24px;">Pending Approval</h2>
+            <p style="color:var(--text-muted);margin-bottom:24px;line-height:1.5;">Ang iyong teacher account ay naghihintay ng approval mula sa Admin. Awtomatikong magbubukas ang iyong dashboard kapag naaprubahan na nang hindi kailangang mag-refresh.</p>
+            <button class="btn btn-ghost" onclick="supabaseClient.auth.signOut().then(()=>window.location.href='index.html')" style="width:auto;padding:10px 22px;">Back to Login</button>
+          </div>`;
       }
+      setupPendingTeacherRealtime(currentUser.id);
       return;
     }
   }
@@ -89,6 +103,9 @@ async function init() {
 
   document.getElementById('loader').style.display = 'none';
   document.getElementById('appShell').style.display = 'flex';
+
+  // Setup live realtime subscriptions across all database tables
+  setupRealtimeSubscriptions();
 
   document.getElementById('logoutBtn').addEventListener('click', logout);
   document.getElementById('enterGradeForm')?.addEventListener('submit', handleEnterGrade);
@@ -120,6 +137,8 @@ function buildNav(role) {
 }
 
 function showView(viewId) {
+  currentActiveView = viewId;
+
   document.querySelectorAll('.nav button').forEach(b =>
     b.classList.toggle('active', b.dataset.view === viewId)
   );
@@ -147,6 +166,14 @@ function showView(viewId) {
 }
 
 async function logout() {
+  if (realtimeChannel) {
+    try {
+      supabaseClient.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    } catch (err) {
+      console.warn('Error removing realtime channel:', err);
+    }
+  }
   await supabaseClient.auth.signOut();
   window.location.href = 'index.html';
 }
@@ -258,6 +285,7 @@ async function openAnnouncementsModal() {
       announcements.forEach(ann => {
         const card = document.createElement('div');
         card.className = 'announcement-card';
+        card.dataset.annId = ann.id;
         card.innerHTML = `
           <div class="announcement-header">
             <h4>${escapeHtml(ann.title)}</h4>
@@ -288,7 +316,7 @@ async function openAnnouncementsModal() {
 }
 
 /* ============== STUDENT: View grade ============== */
-async function loadStudentGrades() {
+async function loadStudentGrades(highlightSubject = null) {
   const { data, error } = await supabaseClient
     .from('grades')
     .select('subject, term, grade, updated_at')
@@ -297,14 +325,18 @@ async function loadStudentGrades() {
 
   const body = document.getElementById('studentGradesBody');
   const empty = document.getElementById('studentGradesEmpty');
+  if (!body) return;
   body.innerHTML = '';
 
   if (error) { toast('Could not load grades.', 'err'); return; }
-  if (!data.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
+  if (!data || !data.length) { if (empty) empty.style.display = 'block'; return; }
+  if (empty) empty.style.display = 'none';
 
   data.forEach(row => {
     const tr = document.createElement('tr');
+    if (highlightSubject && row.subject === highlightSubject) {
+      tr.className = 'row-highlight';
+    }
     tr.innerHTML = `
       <td>${escapeHtml(row.subject)}</td>
       <td>${escapeHtml(row.term)}</td>
@@ -659,9 +691,11 @@ async function handleRemoveAvatar() {
 }
 
 /* ============== TEACHER: Enter grades ============== */
-async function loadEnterGradesForm() {
+async function loadEnterGradesForm(force = false) {
   const select = document.getElementById('egStudent');
-  if (select.dataset.loaded) return;
+  if (!select) return;
+  if (select.dataset.loaded && !force) return;
+  const currentVal = select.value;
 
   const { data, error } = await supabaseClient
     .from('students')
@@ -679,6 +713,9 @@ async function loadEnterGradesForm() {
     opt.textContent = `${s.profiles.full_name} (${s.roll_no ? 'ID: ' + s.roll_no : 'no ID'})`;
     select.appendChild(opt);
   });
+  if (currentVal && Array.from(select.options).some(o => o.value === currentVal)) {
+    select.value = currentVal;
+  }
   select.dataset.loaded = '1';
 }
 
@@ -713,14 +750,24 @@ async function loadUpdateGrades() {
 
   const body = document.getElementById('updateGradesBody');
   const empty = document.getElementById('updateGradesEmpty');
+  if (!body) return;
+
+  // Preserve focus if user is actively typing in a grade input
+  const activeInput = document.activeElement;
+  if (activeInput && activeInput.closest('#updateGradesBody')) {
+    activeInput.addEventListener('blur', () => loadUpdateGrades(), { once: true });
+    return;
+  }
+
   body.innerHTML = '';
 
   if (error) { toast('Could not load grades.', 'err'); return; }
-  if (!data.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
+  if (!data || !data.length) { if (empty) empty.style.display = 'block'; return; }
+  if (empty) empty.style.display = 'none';
 
   data.forEach(row => {
     const tr = document.createElement('tr');
+    tr.dataset.gradeRowId = row.id;
     const studentName = row.students?.profiles?.full_name || 'Unknown';
     tr.innerHTML = `
       <td>${escapeHtml(studentName)}</td>
@@ -746,27 +793,34 @@ async function loadUpdateGrades() {
 }
 
 /* ============== ADMIN: Manage students ============== */
-async function loadManageStudents() {
+async function loadManageStudents(highlightRollNo = null) {
   const [{ data: students, error }, { count: teacherCount }, { count: gradeCount }] = await Promise.all([
     supabaseClient.from('students').select('id, roll_no, class_name, profiles!inner(full_name, email)'),
     supabaseClient.from('teachers').select('id', { count: 'exact', head: true }),
     supabaseClient.from('grades').select('id', { count: 'exact', head: true })
   ]);
 
-  document.getElementById('statStudents').textContent = students ? students.length : 0;
-  document.getElementById('statTeachers').textContent = teacherCount ?? 0;
-  document.getElementById('statGrades').textContent = gradeCount ?? 0;
+  const sCount = document.getElementById('statStudents');
+  const tCount = document.getElementById('statTeachers');
+  const gCount = document.getElementById('statGrades');
+  if (sCount) sCount.textContent = students ? students.length : 0;
+  if (tCount) tCount.textContent = teacherCount ?? 0;
+  if (gCount) gCount.textContent = gradeCount ?? 0;
 
   const body = document.getElementById('manageStudentsBody');
   const empty = document.getElementById('manageStudentsEmpty');
+  if (!body) return;
   body.innerHTML = '';
 
   if (error) { toast('Could not load students.', 'err'); return; }
-  if (!students.length) { empty.style.display = 'block'; return; }
-  empty.style.display = 'none';
+  if (!students || !students.length) { if (empty) empty.style.display = 'block'; return; }
+  if (empty) empty.style.display = 'none';
 
   students.forEach(s => {
     const tr = document.createElement('tr');
+    if (highlightRollNo && s.roll_no === highlightRollNo) {
+      tr.className = 'row-highlight';
+    }
     tr.innerHTML = `
       <td>${escapeHtml(s.profiles.full_name)}</td>
       <td>${escapeHtml(s.profiles.email)}</td>
@@ -865,6 +919,7 @@ async function loadPostedAnnouncements() {
   data.forEach(ann => {
     const card = document.createElement('div');
     card.className = 'announcement-card';
+    card.dataset.annId = ann.id;
     card.innerHTML = `
       <div class="announcement-header">
         <h4>${escapeHtml(ann.title)}</h4>
@@ -968,8 +1023,327 @@ function escapeHtml(str) {
 let toastTimer;
 function toast(msg, type = 'ok') {
   const el = document.getElementById('toast');
+  if (!el) return;
   el.textContent = msg;
   el.className = 'toast show ' + type;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }
+
+/* ============================================================
+   REALTIME ENGINE & EVENT HANDLERS
+   ============================================================ */
+
+function debounce(fn, wait = 300) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
+const debouncedLoadStudentGrades = debounce((subject) => loadStudentGrades(subject), 300);
+const debouncedLoadUpdateGrades = debounce(() => loadUpdateGrades(), 300);
+const debouncedLoadManageStudents = debounce((rollNo) => loadManageStudents(rollNo), 300);
+const debouncedLoadApproveTeachers = debounce(() => loadApproveTeachers(), 300);
+const debouncedLoadReport = debounce(() => loadReport(), 300);
+const debouncedLoadPostedAnnouncements = debounce(() => loadPostedAnnouncements(), 300);
+const debouncedUpdateAdminStatsCounters = debounce(() => updateAdminStatsCounters(), 300);
+
+async function updateAdminStatsCounters() {
+  if (!currentProfile || currentProfile.role !== 'admin') return;
+  try {
+    const [{ count: studentCount }, { count: teacherCount }, { count: gradeCount }] = await Promise.all([
+      supabaseClient.from('students').select('id', { count: 'exact', head: true }),
+      supabaseClient.from('teachers').select('id', { count: 'exact', head: true }),
+      supabaseClient.from('grades').select('id', { count: 'exact', head: true })
+    ]);
+    const sEl = document.getElementById('statStudents');
+    const tEl = document.getElementById('statTeachers');
+    const gEl = document.getElementById('statGrades');
+    if (sEl && studentCount != null) sEl.textContent = studentCount;
+    if (tEl && teacherCount != null) tEl.textContent = teacherCount;
+    if (gEl && gradeCount != null) gEl.textContent = gradeCount;
+  } catch (err) {
+    console.warn('Failed to update stats counters:', err);
+  }
+}
+
+function prependAnnouncementToModal(ann) {
+  const body = document.getElementById('announcementsModalBody');
+  const empty = document.getElementById('announcementsModalEmpty');
+  if (!body) return;
+  if (empty) empty.style.display = 'none';
+
+  if (body.querySelector(`[data-ann-id="${ann.id}"]`)) return;
+
+  const card = document.createElement('div');
+  card.className = 'announcement-card new-announcement-highlight';
+  card.dataset.annId = ann.id;
+  card.innerHTML = `
+    <div class="announcement-header">
+      <h4>${escapeHtml(ann.title)} <span style="font-size:10px; background:var(--gold-soft); color:var(--gold-light); padding:2px 6px; border-radius:4px; margin-left:6px; font-weight:normal;">BAGO</span></h4>
+      <span class="announcement-date">${formatDate(ann.created_at || new Date().toISOString())}</span>
+    </div>
+    <p class="announcement-body">${escapeHtml(ann.body)}</p>
+    <p class="announcement-author">— Admin</p>`;
+
+  body.prepend(card);
+}
+
+function removeAnnouncementFromModal(annId) {
+  if (!annId) return;
+  const card = document.querySelector(`#announcementsModalBody [data-ann-id="${annId}"]`);
+  if (card) card.remove();
+  const body = document.getElementById('announcementsModalBody');
+  const empty = document.getElementById('announcementsModalEmpty');
+  if (body && empty && body.querySelectorAll('.announcement-card').length === 0) {
+    empty.style.display = 'block';
+  }
+}
+
+function handleGradeRealtime(payload) {
+  const role = currentProfile?.role;
+  const event = payload.eventType;
+
+  // Student view: reactive to own grades
+  if (role === 'student') {
+    const isMyGrade = (payload.new?.student_id === currentUser.id) || (payload.old?.student_id === currentUser.id);
+    if (isMyGrade) {
+      if (currentActiveView === 'view_grade') {
+        debouncedLoadStudentGrades(payload.new?.subject);
+      }
+      if (event === 'INSERT') {
+        toast(`Bagong grado: ${payload.new.subject} (${payload.new.grade})`, 'ok');
+      } else if (event === 'UPDATE') {
+        toast(`Na-update ang grado sa ${payload.new.subject}: ${payload.new.grade}`, 'ok');
+      } else if (event === 'DELETE') {
+        toast('May tinanggal na grado sa iyong talaan.', 'err');
+      }
+    }
+  }
+
+  // Teacher view: update grades table
+  if (role === 'teacher') {
+    if (currentActiveView === 'update_grade') {
+      const activeInput = document.activeElement;
+      if (activeInput && activeInput.closest('#updateGradesBody')) {
+        activeInput.addEventListener('blur', () => debouncedLoadUpdateGrades(), { once: true });
+      } else {
+        debouncedLoadUpdateGrades();
+      }
+    }
+  }
+
+  // Admin view: stats and reports
+  if (role === 'admin') {
+    debouncedUpdateAdminStatsCounters();
+    if (currentActiveView === 'generate_report') {
+      debouncedLoadReport();
+    }
+    if (currentActiveView === 'manage_student') {
+      debouncedLoadManageStudents();
+    }
+  }
+}
+
+function handleAnnouncementRealtime(payload) {
+  const role = currentProfile?.role;
+  const modal = document.getElementById('announcementsModal');
+  const isModalOpen = modal && modal.style.display === 'flex';
+
+  if (payload.eventType === 'INSERT') {
+    if (role === 'student' || role === 'teacher') {
+      updateNotifBadge();
+      toast(`📢 Bagong anunsyo: ${payload.new.title || 'Anunsyo'}`, 'ok');
+      if (isModalOpen) {
+        prependAnnouncementToModal(payload.new);
+      }
+    }
+    if (role === 'admin') {
+      if (currentActiveView === 'post_announcement') {
+        debouncedLoadPostedAnnouncements();
+      }
+    }
+  } else if (payload.eventType === 'DELETE') {
+    if (role === 'student' || role === 'teacher') {
+      updateNotifBadge();
+      if (isModalOpen) {
+        removeAnnouncementFromModal(payload.old?.id);
+      }
+    }
+    if (role === 'admin') {
+      if (currentActiveView === 'post_announcement') {
+        debouncedLoadPostedAnnouncements();
+      }
+    }
+  }
+}
+
+function handleTeacherRealtime(payload) {
+  const role = currentProfile?.role;
+
+  if (role === 'admin') {
+    debouncedUpdateAdminStatsCounters();
+    if (currentActiveView === 'approve_teachers') {
+      debouncedLoadApproveTeachers();
+    }
+    if (currentActiveView === 'manage_student') {
+      debouncedLoadManageStudents();
+    }
+    if (payload.eventType === 'INSERT') {
+      toast('May bagong guro na nag-register para sa approval.', 'ok');
+    }
+  }
+}
+
+function handleStudentRealtime(payload) {
+  const role = currentProfile?.role;
+
+  if (role === 'admin') {
+    debouncedUpdateAdminStatsCounters();
+    if (currentActiveView === 'manage_student') {
+      debouncedLoadManageStudents(payload.new?.roll_no);
+    }
+    if (payload.eventType === 'INSERT') {
+      toast('May bagong estudyanteng nag-register.', 'ok');
+    }
+  }
+
+  if (role === 'teacher') {
+    const select = document.getElementById('egStudent');
+    if (select) {
+      delete select.dataset.loaded;
+      if (currentActiveView === 'enter_grades') {
+        loadEnterGradesForm(true);
+      }
+    }
+  }
+}
+
+function handleProfileRealtime(payload) {
+  // If current logged-in user profile updated (e.g. from another tab/device)
+  if (payload.new?.id === currentUser?.id) {
+    currentProfile = { ...currentProfile, ...payload.new };
+    const whoNameEl = document.getElementById('whoName');
+    if (whoNameEl) whoNameEl.textContent = payload.new.full_name;
+    updateAvatarDisplay(payload.new.avatar_url, payload.new.full_name);
+    if (currentActiveView === 'view_profile') {
+      loadProfileView();
+    }
+    return;
+  }
+
+  const role = currentProfile?.role;
+
+  if (role === 'admin') {
+    if (currentActiveView === 'manage_student') {
+      debouncedLoadManageStudents();
+    } else if (currentActiveView === 'approve_teachers') {
+      debouncedLoadApproveTeachers();
+    } else if (currentActiveView === 'generate_report') {
+      debouncedLoadReport();
+    }
+  }
+
+  if (role === 'teacher') {
+    if (currentActiveView === 'enter_grades') {
+      loadEnterGradesForm(true);
+    } else if (currentActiveView === 'update_grade') {
+      debouncedLoadUpdateGrades();
+    }
+  }
+}
+
+function setupPendingTeacherRealtime(teacherId) {
+  if (!supabaseClient) return;
+  const channel = supabaseClient
+    .channel('pending-teacher-' + teacherId)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'teachers',
+        filter: `id=eq.${teacherId}`
+      },
+      (payload) => {
+        if (payload.new && payload.new.approved === true) {
+          toast('Naaprubahan na ang iyong account! Naglo-load ang dashboard…', 'ok');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1200);
+        }
+      }
+    )
+    .subscribe();
+}
+
+function setupRealtimeSubscriptions() {
+  if (!supabaseClient || !currentUser) return;
+
+  if (realtimeChannel) {
+    try {
+      supabaseClient.removeChannel(realtimeChannel);
+    } catch (e) {
+      console.warn(e);
+    }
+    realtimeChannel = null;
+  }
+
+  updateRealtimeStatusUI('CONNECTING');
+
+  realtimeChannel = supabaseClient
+    .channel('sims-live-sync')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'grades' },
+      handleGradeRealtime
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'announcements' },
+      handleAnnouncementRealtime
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'teachers' },
+      handleTeacherRealtime
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'students' },
+      handleStudentRealtime
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'profiles' },
+      handleProfileRealtime
+    )
+    .subscribe((status, err) => {
+      updateRealtimeStatusUI(status);
+      if (err) console.warn('[Realtime error]:', err);
+    });
+}
+
+function updateRealtimeStatusUI(status) {
+  const pill = document.getElementById('realtimeStatusPill');
+  const label = document.getElementById('realtimeStatusLabel');
+  if (!pill || !label) return;
+
+  pill.classList.remove('connecting', 'disconnected');
+
+  if (status === 'SUBSCRIBED') {
+    label.textContent = 'Live';
+    pill.title = 'Realtime Connected — Lahat ng pagbabago ay awtomatikong lumalabas nang walang refresh.';
+  } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CONNECTING') {
+    pill.classList.add('connecting');
+    label.textContent = 'Connecting…';
+    pill.title = 'Nagsisikap kumonekta muli sa Supabase Realtime…';
+  } else if (status === 'CLOSED') {
+    pill.classList.add('disconnected');
+    label.textContent = 'Offline';
+    pill.title = 'Disconnected sa Supabase Realtime.';
+  }
+}
+
