@@ -731,6 +731,8 @@ async function handleEnterGrade(e) {
   const grade = document.getElementById('egGrade').value.trim();
 
   if (!studentId) { toast('Select a student first.', 'err'); return; }
+  if (!subject) { toast('Please select a subject.', 'err'); return; }
+  if (!term) { toast('Please select a semester.', 'err'); return; }
 
   const { error } = await supabaseClient.from('grades').insert({
     student_id: studentId,
@@ -990,7 +992,7 @@ async function loadReport() {
 
 function exportCsv() {
   if (!lastReportRows.length) { toast('Nothing to export yet.', 'err'); return; }
-  const header = 'Student,Subject,Term,Grade,Entered By\n';
+  const header = 'Student,Subject,Semester,Grade,Entered By\n';
   const rows = lastReportRows.map(r =>
     [r.student, r.subject, r.term, r.grade, r.enteredBy]
       .map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')

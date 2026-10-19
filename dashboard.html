@@ -66,10 +66,10 @@
     <section class="view" id="view-view_grade">
       <div class="panel glass">
         <h3>My grades</h3>
-        <p class="sub">Grades entered by your teachers, by subject and term.</p>
+        <p class="sub">Grades entered by your teachers, by subject and semester.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Subject</th><th>Term</th><th>Grade</th><th>Last updated</th></tr></thead>
+            <thead><tr><th>Subject</th><th>Semester</th><th>Grade</th><th>Last updated</th></tr></thead>
             <tbody id="studentGradesBody"></tbody>
           </table>
         </div>
@@ -197,12 +197,22 @@
               <select id="egStudent" required></select>
             </div>
             <div class="field">
-              <label>Subject</label>
-              <input id="egSubject" placeholder="e.g. Mathematics" required>
+              <label for="egSubject">Subject</label>
+              <select id="egSubject" required>
+                <option value="" disabled selected>Select Subject</option>
+                <option value="ADETEC">ADETEC</option>
+                <option value="SYSIN1">SYSIN1</option>
+                <option value="NETWO2">NETWO2</option>
+                <option value="ADBMS">ADBMS</option>
+              </select>
             </div>
             <div class="field">
-              <label>Term</label>
-              <input id="egTerm" placeholder="e.g. Term 1" required>
+              <label for="egTerm">Semester</label>
+              <select id="egTerm" required>
+                <option value="" disabled selected>Select Semester</option>
+                <option value="1st Semester">1st Semester</option>
+                <option value="2nd Semester">2nd Semester</option>
+              </select>
             </div>
             <div class="field">
               <label>Grade</label>
@@ -221,7 +231,7 @@
         <p class="sub">Edit a grade you or another teacher already entered.</p>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Subject</th><th>Term</th><th>Grade</th><th></th></tr></thead>
+            <thead><tr><th>Student</th><th>Subject</th><th>Semester</th><th>Grade</th><th></th></tr></thead>
             <tbody id="updateGradesBody"></tbody>
           </table>
         </div>
@@ -272,7 +282,7 @@
         <button class="btn btn-ghost" id="exportCsvBtn" style="width:auto; padding:10px 18px; margin-bottom:18px;">Export CSV</button>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Subject</th><th>Term</th><th>Grade</th><th>Entered by</th></tr></thead>
+            <thead><tr><th>Student</th><th>Subject</th><th>Semester</th><th>Grade</th><th>Entered by</th></tr></thead>
             <tbody id="reportBody"></tbody>
           </table>
         </div>

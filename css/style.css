@@ -254,6 +254,10 @@ a {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
+.field select {
+  cursor: pointer;
+}
+
 .field input::placeholder {
   color: #5a6478;
 }
