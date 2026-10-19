@@ -107,7 +107,11 @@ async function init() {
   // Setup live realtime subscriptions across all database tables
   setupRealtimeSubscriptions();
 
-  document.getElementById('logoutBtn').addEventListener('click', logout);
+  document.getElementById('sidebarWhoCard')?.addEventListener('click', () => {
+    showView('view_profile');
+  });
+
+  document.getElementById('logoutBtn')?.addEventListener('click', logout);
   document.getElementById('enterGradeForm')?.addEventListener('submit', handleEnterGrade);
   document.getElementById('exportCsvBtn')?.addEventListener('click', exportCsv);
   document.getElementById('announcementForm')?.addEventListener('submit', handlePostAnnouncement);

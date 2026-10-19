@@ -15,28 +15,28 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar glass">
-    <div class="brand">
-      <img src="assets/fullbright-logo.jpg" alt="Fullbright College Logo" class="brand-logo">
-      <div class="brand-text">
-        <h1>Fullbright College</h1>
-        <span class="brand-sub">SIMS Portal</span>
+    <div class="sidebar-top">
+      <div class="brand">
+        <img src="assets/fullbright-logo.jpg" alt="Fullbright College Logo" class="brand-logo">
+        <div class="brand-text">
+          <h1>Fullbright College</h1>
+          <span class="brand-sub">SIMS Portal</span>
+        </div>
       </div>
-    </div>
 
-    <div class="who">
-      <div class="who-avatar">
-        <img id="whoAvatarImg" src="" alt="Avatar" style="display:none;">
-        <span id="whoAvatarInitial">U</span>
-      </div>
-      <div class="who-meta">
-        <div class="name" id="whoName">—</div>
-        <span class="role" id="whoRole">—</span>
+      <div class="who" id="sidebarWhoCard" title="View profile">
+        <div class="who-avatar">
+          <img id="whoAvatarImg" src="" alt="Avatar" style="display:none;">
+          <span id="whoAvatarInitial">U</span>
+        </div>
+        <div class="who-meta">
+          <div class="name" id="whoName">—</div>
+          <span class="role" id="whoRole">—</span>
+        </div>
       </div>
     </div>
 
     <nav class="nav" id="navList"><!-- injected by role --></nav>
-
-    <button class="btn btn-danger" id="logoutBtn">Logout</button>
   </aside>
 
   <!-- MAIN -->
@@ -131,7 +131,7 @@
               <input type="text" id="profExtra3" placeholder="e.g. 09123456789">
             </div>
           </div>
-          <div style="margin-top:18px; display:flex; align-items:center; gap:12px;">
+          <div class="profile-btn-row" style="margin-top:18px; display:flex; align-items:center; gap:12px;">
             <button class="btn btn-primary" type="submit" id="saveProfileBtn" style="width:auto; padding:11px 24px;">Save changes</button>
             <span id="profileStatus" style="font-size:13px; color:var(--text-muted);"></span>
           </div>
@@ -152,10 +152,35 @@
               <input type="password" id="confirmPassword" placeholder="Re-enter password" minlength="6" required>
             </div>
           </div>
-          <div style="margin-top:18px;">
+          <div class="profile-btn-row" style="margin-top:18px;">
             <button class="btn btn-ghost" type="submit" id="changePasswordBtn" style="width:auto; padding:11px 24px;">Update password</button>
           </div>
         </form>
+
+        <hr style="margin:32px 0 24px; border:0; border-top:1px solid rgba(255,255,255,0.08);">
+
+        <!-- Account Session / Logout Section -->
+        <div class="profile-section-danger">
+          <div class="profile-section-danger-header">
+            <div class="danger-title-row">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--error); flex-shrink:0;">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              <h4>Account Session</h4>
+            </div>
+            <p class="sub">Sign out of your account on this device.</p>
+          </div>
+          <button class="btn btn-danger" id="logoutBtn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            Logout
+          </button>
+        </div>
 
       </div>
     </section>

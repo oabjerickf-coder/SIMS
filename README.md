@@ -85,7 +85,7 @@ Then open **http://localhost:8080** in your browser.
 - **Student**: View grade (empty until a teacher enters one), View profile.
 - **Teacher**: Enter grades (pick a student, subject, term, grade) → Update grade (edit any existing grade).
 - **Admin**: Manage student (roster + counts), Generate report (all grades, with CSV export).
-- **Logout** from the sidebar returns everyone to the login page — matching the flowchart's end state.
+- **Logout** from the profile tab returns everyone to the login page — matching the flowchart's end state.
 
 ## Step 8 — Deploy (optional)
 
